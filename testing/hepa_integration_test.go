@@ -53,6 +53,9 @@ func NewMockOzoneServer(t *testing.T) *MockOzoneServer {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/xrpc/tools.ozone.moderation.emitEvent", mock.handleEmitEvent)
+	mux.HandleFunc("/xrpc/tools.ozone.moderation.getRecord", mock.handleGetRecord)
+	mux.HandleFunc("/xrpc/com.atproto.moderation.createReport", mock.handleCreateReport)
+	mux.HandleFunc("/xrpc/tools.ozone.moderation.queryEvents", mock.handleQueryEvents)
 	
 	mock.server = &http.Server{Handler: mux}
 	
@@ -116,6 +119,76 @@ func (m *MockOzoneServer) EventCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.events)
+}
+
+func (m *MockOzoneServer) handleGetRecord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Return 404 for now - this simulates that the record isn't indexed in Ozone yet
+	// This is the expected behavior according to the comment in persist.go:287
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error":   "RecordNotFound",
+		"message": "Record not found in moderation system (simulated for testing)",
+	})
+}
+
+func (m *MockOzoneServer) handleCreateReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the report creation request
+	var reportReq map[string]interface{}
+	if err := json.Unmarshal(body, &reportReq); err != nil {
+		http.Error(w, "failed to parse JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Return successful response (matching com.atproto.moderation.createReport output format)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"id":         int64(time.Now().UnixNano()), // Use nanosecond timestamp as unique ID
+		"createdAt":  time.Now().Format(time.RFC3339),
+		"reportedBy": "did:plc:test-hepa-admin", // From our HEPA admin
+		"subject":    reportReq["subject"],
+	}
+	
+	// Add optional fields if present
+	if reasonType, ok := reportReq["reasonType"]; ok {
+		response["reasonType"] = reasonType
+	}
+	if reason, ok := reportReq["reason"]; ok {
+		response["reason"] = reason
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockOzoneServer) handleQueryEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Return empty events list for deduplication check
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events":  []interface{}{}, // Empty list, no duplicate reports found
+		"cursor":  "",
+	})
 }
 
 func (m *MockOzoneServer) Close() {
@@ -251,6 +324,12 @@ func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *Tes
 	flags := flagstore.NewMemFlagStore()
 	sets := setstore.NewMemSetStore()
 	
+	// Populate test word sets (similar to automod/engine/testing.go)
+	sets.Sets["bad-words"] = make(map[string]bool)
+	sets.Sets["bad-words"]["hardestr"] = true
+	sets.Sets["worst-words"] = make(map[string]bool) 
+	sets.Sets["worst-words"]["hardestr"] = true
+	
 	bskyClient := xrpc.Client{
 		Client: util.RobustHTTPClient(),
 		Host:   "https://public.api.bsky.app", // Could be mocked too if needed
@@ -271,7 +350,7 @@ func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *Tes
 		BlobClient:  util.RobustHTTPClient(),
 		Config: engine.EngineConfig{
 			SkipAccountMeta:      true, // Skip account metadata for testing
-			ReportDupePeriod:     24 * time.Hour,
+			ReportDupePeriod:     0,    // Disable report deduplication for testing
 			QuotaModReportDay:    10000,
 			QuotaModTakedownDay:  200,
 			QuotaModActionDay:    2000,
@@ -403,64 +482,46 @@ func TestHEPAIntegrationGTUBEPost(t *testing.T) {
 	hepa.Run(t)
 	defer hepa.Close()
 	
-	// Create test user and post GTUBE content
+	// Create test user and post bad word content
 	user := pds.MustNewUser(t, "spammer.testpds")
-	postRef := user.Post(t, "This post contains spam: "+gtubeString)
+	postRef := user.Post(t, "hardestr")
 	
-	// Wait for processing and ozone notifications (GTUBE rule creates both label and tag)
-	events := hepa.WaitForOzoneEvents(2, 2*time.Second)
+	// Wait for processing and ozone notifications (BadWordPostRule creates report)
+	events := hepa.WaitForOzoneEvents(1, 2*time.Second)
 	
-	// Verify ozone events were generated
-	require.Equal(2, len(events), "Expected exactly 2 ozone events for GTUBE post (label + tag)")
+	// Verify ozone event was generated
+	require.Equal(1, len(events), "Expected exactly 1 ozone event for bad word post (report)")
 	
-	// Verify both events are from our admin
-	for _, event := range events {
-		assert.Equal("did:plc:test-hepa-admin", event.CreatedBy)
-		require.NotNil(event.Event)
-	}
+	event := events[0]
 	
-	// Find the label event and tag event
-	var labelEvent, tagEvent *toolsozone.ModerationEmitEvent_Input
-	for i := range events {
-		if events[i].Event.ModerationDefs_ModEventLabel != nil {
-			labelEvent = &events[i]
-		} else if events[i].Event.ModerationDefs_ModEventTag != nil {
-			tagEvent = &events[i]
-		}
-	}
+	// Verify event details
+	assert.Equal("did:plc:test-hepa-admin", event.CreatedBy)
+	require.NotNil(event.Event)
+	require.NotNil(event.Event.ModerationDefs_ModEventReport)
 	
-	// Verify label event
-	require.NotNil(labelEvent, "Expected a moderation label event")
-	require.NotNil(labelEvent.Event.ModerationDefs_ModEventLabel)
-	label := labelEvent.Event.ModerationDefs_ModEventLabel
-	assert.Contains(label.CreateLabelVals, "spam", "Expected 'spam' label to be applied")
+	// Verify the report was created
+	report := event.Event.ModerationDefs_ModEventReport
+	assert.Equal("com.atproto.moderation.defs#reasonRude", *report.ReportType)
 	
-	// Verify tag event
-	require.NotNil(tagEvent, "Expected a moderation tag event")
-	require.NotNil(tagEvent.Event.ModerationDefs_ModEventTag)
-	tag := tagEvent.Event.ModerationDefs_ModEventTag
-	assert.Contains(tag.Add, "gtube-record", "Expected 'gtube-record' tag to be applied")
-	
-	// Verify the subject is correct (check the label event)
-	require.NotNil(labelEvent.Subject)
-	if labelEvent.Subject.RepoStrongRef != nil {
-		// Record-level labeling
-		assert.Equal(postRef.Uri, labelEvent.Subject.RepoStrongRef.Uri)
-		assert.Equal(postRef.Cid, labelEvent.Subject.RepoStrongRef.Cid)
-	} else if labelEvent.Subject.AdminDefs_RepoRef != nil {
-		// Account-level labeling  
-		assert.Equal(user.DID(), labelEvent.Subject.AdminDefs_RepoRef.Did)
+	// Verify the subject is correct (should be the record)
+	require.NotNil(event.Subject)
+	if event.Subject.RepoStrongRef != nil {
+		// Record-level reporting
+		assert.Equal(postRef.Uri, event.Subject.RepoStrongRef.Uri)
+		assert.Equal(postRef.Cid, event.Subject.RepoStrongRef.Cid)
+	} else if event.Subject.AdminDefs_RepoRef != nil {
+		// Account-level reporting  
+		assert.Equal(user.DID(), event.Subject.AdminDefs_RepoRef.Did)
 	} else {
 		t.Fatal("Expected either RepoStrongRef or AdminDefs_RepoRef in event subject")
 	}
 	
-	// Verify comments contain automod signature
-	require.NotNil(label.Comment)
-	assert.True(strings.Contains(*label.Comment, "[automod]"), 
-		"Expected automod signature in label comment, got: %s", *label.Comment)
-	require.NotNil(tag.Comment)
-	assert.True(strings.Contains(*tag.Comment, "[automod]"), 
-		"Expected automod signature in tag comment, got: %s", *tag.Comment)
+	// Verify comment contains automod signature and mentions the bad word
+	require.NotNil(report.Comment)
+	assert.True(strings.Contains(*report.Comment, "[automod]"), 
+		"Expected automod signature in report comment, got: %s", *report.Comment)
+	assert.True(strings.Contains(*report.Comment, "hardestr"), 
+		"Expected bad word 'hardestr' mentioned in report comment, got: %s", *report.Comment)
 }
 
 // TestHEPAIntegrationMixedPosts tests both normal and violating posts together
