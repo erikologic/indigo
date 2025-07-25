@@ -69,6 +69,7 @@ check: ## Compile everything, checking syntax (does not output binaries)
 .PHONY: lexgen
 lexgen: ## Run codegen tool for lexicons (lexicon JSON to Go packages)
 	go run ./cmd/lexgen/ --build-file cmd/lexgen/bsky.json $(LEXDIR)
+	go run ./cmd/lexgen/ --build-file cmd/lexgen/flashes.json $(LEXDIR)
 
 .PHONY: cborgen
 cborgen: ## Run codegen tool for CBOR serialization
