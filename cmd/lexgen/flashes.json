@@ -1,0 +1,14 @@
+[
+  {
+    "package": "flashes",
+    "prefix": "app.flashes",
+    "outdir": "api/flashes",
+    "import": "github.com/erikologic/indigo/api/flashes"
+  },
+  {
+    "package": "atproto",
+    "prefix": "com.atproto",
+    "outdir": "api/atproto",
+    "import": "github.com/bluesky-social/indigo/api/atproto"
+  }
+]
