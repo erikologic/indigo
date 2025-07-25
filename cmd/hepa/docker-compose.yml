@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  hepa:
+    image: hepa:latest
+    container_name: hepa
+    restart: unless-stopped
+    environment:
+      - ATP_RELAY_HOST=wss://relay.eurosky.social
+      - HEPA_OZONE_AUTH_ADMIN_TOKEN=${HEPA_OZONE_AUTH_ADMIN_TOKEN}
+      - HEPA_PDS_AUTH_ADMIN_TOKEN=${HEPA_PDS_AUTH_ADMIN_TOKEN}
+      - GODEBUG=netdns=go
+      - TZ=Etc/UTC
+#      - ATP_RELAY_HOST=ws://localhost:2470
+#      - ATP_RELAY_HOST=wss://relay.eurosky.social
+#      - ATP_RELAY_HOST=wss://user.eurosky.social
+      - ATP_RELAY_HOST=wss://bsky.network
+      - ATP_OZONE_HOST=https://ozone.eurosky.social
+      - HEPA_OZONE_DID=did:plc:7kykji2z2jie3tcaz6jypwsf
+      - ATP_PDS_HOST=https://user.eurosky.social
+    ports:
+      - "2210:2210"
+    volumes:
+      - /data/hepa:/data/hepa
