@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -29,13 +30,13 @@ import (
 var firehoseCursorKey = "hepa/seq"
 
 type FirehoseConsumer struct {
-	Parallelism int
-	Logger      *slog.Logger
-	RedisClient *redis.Client
-	Engine      *automod.Engine
-	Host        string
+	Parallelism       int
+	Logger            *slog.Logger
+	RedisClient       *redis.Client
+	Engine            *automod.Engine
+	Host              string
+	CollectionFilters []string // Collection prefixes to filter for (e.g., ["api.flashes.", "app.bsky.feed.post"])
 
-	// TODO: prefilter record collections; or predicate function?
 	// TODO: enable/disable event types; or predicate function?
 
 	// lastSeq is the most recent event sequence number we've received and begun to handle.
@@ -119,6 +120,25 @@ func (fc *FirehoseConsumer) Run(ctx context.Context) error {
 	return events.HandleRepoStream(ctx, con, scheduler, fc.Logger)
 }
 
+// shouldProcessCollection checks if a collection should be processed based on CollectionFilters.
+// If CollectionFilters is empty, all collections are processed.
+// If CollectionFilters has entries, only collections matching the prefixes are processed.
+func (fc *FirehoseConsumer) shouldProcessCollection(collection string) bool {
+	// If no filters are configured, process all collections
+	if len(fc.CollectionFilters) == 0 {
+		return true
+	}
+	
+	// Check if collection matches any of the configured filters
+	for _, filter := range fc.CollectionFilters {
+		if strings.HasPrefix(collection, filter) {
+			return true
+		}
+	}
+	
+	return false
+}
+
 // NOTE: for now, this function basically never errors, just logs and returns nil. Should think through error processing better.
 func (fc *FirehoseConsumer) HandleRepoCommit(ctx context.Context, evt *comatproto.SyncSubscribeRepos_Commit) error {
 
@@ -148,6 +168,12 @@ func (fc *FirehoseConsumer) HandleRepoCommit(ctx context.Context, evt *comatprot
 		if err != nil {
 			logger.Error("invalid path in repo op", "err", err)
 			return nil
+		}
+
+		// Apply collection filtering
+		if !fc.shouldProcessCollection(collection.String()) {
+			logger.Debug("skipping collection due to filter", "collection", collection.String())
+			continue
 		}
 
 		ek := repomgr.EventKind(op.Action)
