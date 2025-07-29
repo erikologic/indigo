@@ -5,14 +5,11 @@ package flashes
 // schema: app.flashes.feed.post
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	comatprototypes "github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/lex/util"
-	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
 func init() {
@@ -62,32 +59,6 @@ func (t *FeedPost_Labels) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (t *FeedPost_Labels) MarshalCBOR(w io.Writer) error {
-
-	if t == nil {
-		_, err := w.Write(cbg.CborNull)
-		return err
-	}
-	if t.LabelDefs_SelfLabels != nil {
-		return t.LabelDefs_SelfLabels.MarshalCBOR(w)
-	}
-	return fmt.Errorf("cannot cbor marshal empty enum")
-}
-func (t *FeedPost_Labels) UnmarshalCBOR(r io.Reader) error {
-	typ, b, err := util.CborTypeExtractReader(r)
-	if err != nil {
-		return err
-	}
-
-	switch typ {
-	case "com.atproto.label.defs#selfLabels":
-		t.LabelDefs_SelfLabels = new(comatprototypes.LabelDefs_SelfLabels)
-		return t.LabelDefs_SelfLabels.UnmarshalCBOR(bytes.NewReader(b))
-
-	default:
-		return nil
-	}
-}
 
 // FeedPost_ReplyRef is a "replyRef" in the app.flashes.feed.post schema.
 type FeedPost_ReplyRef struct {
