@@ -418,6 +418,30 @@ func (u *TestUser) Post(t *testing.T, body string) *atproto.RepoStrongRef {
 	}
 }
 
+// PostFlash creates a flash post using api.flashes.flash collection
+func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
+	t.Helper()
+
+	ctx := context.TODO()
+	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
+		Collection: "api.flashes.flash",
+		Repo:       u.did,
+		Record: &lexutil.LexiconTypeDecoder{Val: &bsky.FeedPost{
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Text:      body,
+		}},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return &atproto.RepoStrongRef{
+		Cid: resp.Cid,
+		Uri: resp.Uri,
+	}
+}
+
 func (u *TestUser) Like(t *testing.T, post *atproto.RepoStrongRef) {
 	t.Helper()
 

@@ -42,6 +42,7 @@ func DefaultRules() automod.RuleSet {
 			BadWordRecordKeyRule,
 			BadWordOtherRecordRule,
 			TooManyRepostRule,
+			GtubeFlashRule, // Add GTUBE detection for api.flashes.* collections
 		},
 		RecordDeleteRules: []automod.RecordRuleFunc{
 			DeleteInteractionRule,
