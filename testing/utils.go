@@ -21,6 +21,7 @@ import (
 
 	atproto "github.com/bluesky-social/indigo/api/atproto"
 	bsky "github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/flashes"
 	"github.com/bluesky-social/indigo/bgs"
 	"github.com/bluesky-social/indigo/carstore"
 	"github.com/bluesky-social/indigo/events"
@@ -418,15 +419,15 @@ func (u *TestUser) Post(t *testing.T, body string) *atproto.RepoStrongRef {
 	}
 }
 
-// PostFlash creates a flash post using api.flashes.flash collection
+// PostFlash creates a flash post using app.flashes.feed.post collection
 func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
 	t.Helper()
 
 	ctx := context.TODO()
 	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
-		Collection: "api.flashes.flash",
+		Collection: "app.flashes.feed.post",
 		Repo:       u.did,
-		Record: &lexutil.LexiconTypeDecoder{Val: &bsky.FeedPost{
+		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
 			CreatedAt: time.Now().Format(time.RFC3339),
 			Text:      body,
 		}},
