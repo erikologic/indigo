@@ -6,11 +6,14 @@
 FROM golang:1.24-alpine3.22 AS build-env
 RUN apk add --no-cache build-base make git
 
+
+# Copy go.mod and go.sum for dependency caching
+WORKDIR /dockerbuild
 COPY go.mod go.sum ./
 RUN go mod download
 
-ADD . /dockerbuild
-WORKDIR /dockerbuild
+# Copy the rest of the source code
+COPY . .
 
 # timezone data for alpine builds
 ENV GOEXPERIMENT=loopvar
