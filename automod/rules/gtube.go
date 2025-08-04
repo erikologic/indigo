@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	appbsky "github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/flashes"
 	"github.com/bluesky-social/indigo/automod"
 )
 
@@ -35,16 +36,12 @@ func GtubeProfileRule(c *automod.RecordContext, profile *appbsky.ActorProfile) e
 
 var _ automod.RecordRuleFunc = GtubeFlashRule
 
-// GtubeFlashRule detects GTUBE strings in api.flashes.* collections
 func GtubeFlashRule(c *automod.RecordContext) error {
-	// Only process api.flashes.* collections
-	if !strings.HasPrefix(c.RecordOp.Collection.String(), "api.flashes.") {
+	if c.RecordOp.Collection.String() != "app.flashes.feed.post" {
 		return nil
 	}
 
-	// Parse the record to extract text content
-	// Since flashes might use FeedPost structure, try to parse as such
-	var flashPost appbsky.FeedPost
+	var flashPost flashes.FeedPost
 	if err := flashPost.UnmarshalCBOR(bytes.NewReader(c.RecordOp.RecordCBOR)); err != nil {
 		// If parsing fails, skip this record
 		return nil

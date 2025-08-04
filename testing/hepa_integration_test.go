@@ -370,7 +370,7 @@ func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *Tes
 		Host:              relayHost,
 		Parallelism:       1, // Use single worker for deterministic testing
 		RedisClient:       nil,
-		CollectionFilters: []string{"api.flashes."}, // Filter for api.flashes.* collections only
+		CollectionFilters: []string{"app.flashes."}, // Filter for app.flashes.* collections only
 	}
 
 	return &TestHEPA{
@@ -509,7 +509,7 @@ func TestHEPAIntegrationGTUBEPost(t *testing.T) {
 			// Record-level event
 			assert.Equal(postRef.Uri, event.Subject.RepoStrongRef.Uri)
 			assert.Equal(postRef.Cid, event.Subject.RepoStrongRef.Cid)
-			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "api.flashes.flash"), 
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.flashes.feed.post"), 
 				"Expected event subject to be from flashes collection, got: %s", event.Subject.RepoStrongRef.Uri)
 		} else if event.Subject.AdminDefs_RepoRef != nil {
 			// Account-level event
@@ -596,7 +596,7 @@ func TestHEPAIntegrationMixedPosts(t *testing.T) {
 	for _, event := range events {
 		// Verify the events are for flashes collection
 		if event.Subject != nil && event.Subject.RepoStrongRef != nil {
-			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "api.flashes.flash"), 
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.flashes.feed.post"), 
 				"Expected event subject to be from flashes collection, got: %s", event.Subject.RepoStrongRef.Uri)
 		}
 		
@@ -668,7 +668,7 @@ func TestHEPAIntegrationFlashesOnly(t *testing.T) {
 		// Check that the events are for the flash user, not the bsky user
 		if event.Subject != nil && event.Subject.RepoStrongRef != nil {
 			// The subject should be from a flashes collection
-			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "api.flashes.flash"), 
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.flashes.feed.post"), 
 				"Expected event subject to be from flashes collection, got: %s", event.Subject.RepoStrongRef.Uri)
 		}
 		
