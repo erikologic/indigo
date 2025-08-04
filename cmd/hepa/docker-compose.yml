@@ -1,7 +1,9 @@
 version: "3.8"
 services:
   hepa:
-    image: hepa:latest
+    build:
+      context: ../../
+      dockerfile: ./cmd/hepa/Dockerfile
     container_name: hepa
     restart: unless-stopped
     environment:
