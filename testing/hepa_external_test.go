@@ -71,7 +71,7 @@ func (h *ExternalHEPA) Start(t *testing.T) {
 		"ATP_OZONE_HOST=" + h.mockOzone.Host(),
 		"HEPA_OZONE_DID=did:plc:test-hepa-admin",
 		"HEPA_OZONE_AUTH_ADMIN_TOKEN=test-token",
-		"HEPA_COLLECTION_FILTER=api.flashes.",
+		"HEPA_COLLECTION_FILTER=app.flashes.",
 		"HEPA_LOG_LEVEL=debug",
 		"HEPA_FIREHOSE_PARALLELISM=1",
 	}
@@ -176,7 +176,7 @@ func TestExternalHEPAIntegrationGTUBEPost(t *testing.T) {
 		// Verify the subject is from flashes collection (record-level event)
 		require.NotNil(event.Subject)
 		if event.Subject.RepoStrongRef != nil {
-			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "api.flashes.flash"), 
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.flashes.feed.post"), 
 				"Expected event subject to be from flashes collection, got: %s", event.Subject.RepoStrongRef.Uri)
 		}
 		
