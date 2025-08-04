@@ -19,7 +19,7 @@ services:
       - ATP_OZONE_HOST=https://ozone.eurosky.social
       - HEPA_OZONE_DID=did:plc:7kykji2z2jie3tcaz6jypwsf
       - ATP_PDS_HOST=https://user.eurosky.social
-      - HEPA_COLLECTION_FILTER=app.flashes.*
+      - HEPA_COLLECTION_FILTER=app.flashes.feed.post
     ports:
       - "2210:2210"
     volumes:
