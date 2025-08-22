@@ -767,12 +767,12 @@ func TestHEPAIntegrationImageMatchKids(t *testing.T) {
 	
 	// Setup HEPA with CSAM detection service
 	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
-	// Override collection filter to allow bsky posts
-	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	// Override collection filter to allow flash posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.flashes."}
 	
 	hepa.Run(t)
 	defer hepa.Close()
-	postRef := user.PostWithImage(t, "This post contains kids.jpg", "kids.jpg")
+	postRef := user.PostFlashWithImage(t, "This post contains kids.jpg", "kids.jpg")
 	
 	// Wait for processing and CSAM detection events
 	events := hepa.WaitForOzoneEvents(3, 3*time.Second) // Expecting csam label + image-match-test tag + csam-detected account tag
@@ -794,8 +794,8 @@ func TestHEPAIntegrationImageMatchKids(t *testing.T) {
 			// Record-level event
 			assert.Equal(postRef.Uri, event.Subject.RepoStrongRef.Uri)
 			assert.Equal(postRef.Cid, event.Subject.RepoStrongRef.Cid)
-			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.bsky.feed.post"), 
-				"Expected event subject to be from bsky collection, got: %s", event.Subject.RepoStrongRef.Uri)
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.flashes.feed.post"), 
+				"Expected event subject to be from flashes collection, got: %s", event.Subject.RepoStrongRef.Uri)
 		} else if event.Subject.AdminDefs_RepoRef != nil {
 			// Account-level event
 			assert.Equal(user.DID(), event.Subject.AdminDefs_RepoRef.Did)
@@ -851,14 +851,14 @@ func TestHEPAIntegrationImageMatchDog(t *testing.T) {
 	
 	// Setup HEPA with CSAM detection service
 	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
-	// Override collection filter to allow bsky posts
-	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	// Override collection filter to allow flash posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.flashes."}
 	hepa.Run(t)
 	defer hepa.Close()
 	
 	// Create test user and post with dog.jpg image
 	user := pds.MustNewUser(t, "testuser.testpds")
-	user.PostWithImage(t, "This post contains dog.jpg", "dog.jpg")
+	user.PostFlashWithImage(t, "This post contains dog.jpg", "dog.jpg")
 	
 	// Wait a moment for processing
 	time.Sleep(500 * time.Millisecond)
@@ -868,7 +868,7 @@ func TestHEPAIntegrationImageMatchDog(t *testing.T) {
 	assert.Equal(0, len(events), "Expected no ozone events for dog.jpg image, got %d", len(events))
 }
 
-// TestHEPAIntegrationNoImage tests that normal bsky posts without images do NOT trigger image detection
+// TestHEPAIntegrationNoImage tests that normal flash posts without images do NOT trigger image detection
 func TestHEPAIntegrationNoImage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping HEPA integration test in 'short' test mode")
@@ -896,14 +896,14 @@ func TestHEPAIntegrationNoImage(t *testing.T) {
 	
 	// Setup HEPA with CSAM detection service
 	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
-	// Override collection filter to allow bsky posts
-	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	// Override collection filter to allow flash posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.flashes."}
 	hepa.Run(t)
 	defer hepa.Close()
 	
 	// Create test user and post normal content without images
 	user := pds.MustNewUser(t, "testuser.testpds")
-	user.Post(t, "This is a normal post without any images")
+	user.PostFlash(t, "This is a normal flash post without any images")
 	
 	// Wait a moment for processing
 	time.Sleep(500 * time.Millisecond)

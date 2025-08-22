@@ -13,8 +13,8 @@ func (cc *CSAMClient) CSAMDetectionBlobRule(c *automod.RecordContext, blob lexut
 		return nil
 	}
 
-	// Only process app.bsky.feed.post records for now
-	if c.RecordOp.Collection.String() != "app.bsky.feed.post" {
+	// Only process app.flashes.feed.post records for now
+	if c.RecordOp.Collection.String() != "app.flashes.feed.post" {
 		return nil
 	}
 

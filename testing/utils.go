@@ -443,8 +443,8 @@ func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
 	}
 }
 
-// PostWithImage creates a bsky post with an image attachment
-func (u *TestUser) PostWithImage(t *testing.T, body string, imagePath string) *atproto.RepoStrongRef {
+// PostFlashWithImage creates a flash post with an image attachment
+func (u *TestUser) PostFlashWithImage(t *testing.T, body string, imagePath string) *atproto.RepoStrongRef {
 	t.Helper()
 
 	ctx := context.TODO()
@@ -461,20 +461,18 @@ func (u *TestUser) PostWithImage(t *testing.T, body string, imagePath string) *a
 		t.Fatalf("failed to upload blob: %v", err)
 	}
 
-	// Create post with image embed
+	// Create flash post with image embed
 	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
-		Collection: "app.bsky.feed.post",
+		Collection: "app.flashes.feed.post",
 		Repo:       u.did,
-		Record: &lexutil.LexiconTypeDecoder{Val: &bsky.FeedPost{
+		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
 			CreatedAt: time.Now().Format(time.RFC3339),
 			Text:      body,
-			Embed: &bsky.FeedPost_Embed{
-				EmbedImages: &bsky.EmbedImages{
-					Images: []*bsky.EmbedImages_Image{
-						{
-							Image: blobResp.Blob,
-							Alt:   "Test image",
-						},
+			Embed: &flashes.FeedPost_EmbedImages{
+				Images: []*flashes.FeedPost_Image{
+					{
+						Image: blobResp.Blob,
+						Alt:   "Test image",
 					},
 				},
 			},
@@ -490,6 +488,7 @@ func (u *TestUser) PostWithImage(t *testing.T, body string, imagePath string) *a
 		Uri: resp.Uri,
 	}
 }
+
 
 func (u *TestUser) Like(t *testing.T, post *atproto.RepoStrongRef) {
 	t.Helper()
