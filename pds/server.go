@@ -11,6 +11,7 @@ import (
 	"net/mail"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -51,6 +52,10 @@ type Server struct {
 	plc plc.PLCClient
 
 	log *slog.Logger
+
+	// Simple in-memory blob store for testing
+	blobStore   map[string][]byte
+	blobStoreMu sync.RWMutex
 }
 
 // serverListenerBootTimeout is how long to wait for the requested server socket
@@ -91,6 +96,9 @@ func NewServer(db *gorm.DB, cs carstore.CarStore, serkey *did.PrivKey, handleSuf
 		enforcePeering: false,
 
 		log: slog.Default().With("system", "pds"),
+
+		// Initialize in-memory blob store for testing
+		blobStore: make(map[string][]byte),
 	}
 
 	repoman.SetEventHandler(func(ctx context.Context, evt *repomgr.RepoEvent) {
@@ -228,6 +236,8 @@ func (s *Server) RunAPIWithListener(listen net.Listener) error {
 				return true
 			case "/xrpc/com.atproto.sync.getRepo":
 				fmt.Println("TODO: currently not requiring auth on get repo endpoint")
+				return true
+			case "/xrpc/com.atproto.sync.getBlob":
 				return true
 			case "/xrpc/com.atproto.peering.follow", "/events":
 				auth := c.Request().Header.Get("Authorization")
