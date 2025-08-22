@@ -2,6 +2,8 @@ package testing
 
 import (
 	"context"
+	"crypto/sha256"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,6 +26,7 @@ import (
 	"github.com/bluesky-social/indigo/automod/flagstore"
 	"github.com/bluesky-social/indigo/automod/rules"
 	"github.com/bluesky-social/indigo/automod/setstore"
+	"github.com/bluesky-social/indigo/automod/visual"
 	"github.com/bluesky-social/indigo/plc"
 	"github.com/bluesky-social/indigo/util"
 	"github.com/bluesky-social/indigo/xrpc"
@@ -33,6 +36,102 @@ import (
 )
 
 const gtubeString = "XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X"
+
+//go:embed kids.jpg
+var kidsJpgData []byte
+
+// MockCSAMServer simulates an external CSAM detection service for testing
+type MockCSAMServer struct {
+	server   *http.Server
+	listener net.Listener
+	// Configuration for which images should be detected as CSAM
+	csamImages map[string]bool // maps image content hashes to CSAM status
+}
+
+func NewMockCSAMServer(t *testing.T) *MockCSAMServer {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	mock := &MockCSAMServer{
+		listener:   listener,
+		csamImages: make(map[string]bool),
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/check-csam", mock.handleCheckCSAM)
+
+	mock.server = &http.Server{
+		Handler: mux,
+	}
+
+	go func() {
+		if err := mock.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			t.Errorf("Mock CSAM server error: %v", err)
+		}
+	}()
+
+	return mock
+}
+
+func (m *MockCSAMServer) Host() string {
+	return "http://" + m.listener.Addr().String()
+}
+
+func (m *MockCSAMServer) SetImageCSAM(imageCID string, isCSAM bool) {
+	m.csamImages[imageCID] = isCSAM
+}
+
+func (m *MockCSAMServer) Close() {
+	m.server.Close()
+}
+
+func (m *MockCSAMServer) handleCheckCSAM(w http.ResponseWriter, r *http.Request) {
+	// Verify JWT token
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "Bearer test-csam-token" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(32 << 20) // 32MB
+	if err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "No image provided", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read image data
+	imageData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read image", http.StatusBadRequest)
+		return
+	}
+
+	// Simple hash of image content for testing
+	imageHash := fmt.Sprintf("%x", sha256.Sum256(imageData))
+
+	// Check if this image should be detected as CSAM
+	isCSAM, exists := m.csamImages[imageHash]
+	if !exists {
+		isCSAM = false // Default to not CSAM
+	}
+
+	response := map[string]interface{}{
+		"is_csam":    isCSAM,
+		"confidence": 0.95,
+		"message":    fmt.Sprintf("Mock detection result for hash %s", imageHash[:8]),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
 
 // MockOzoneServer captures ozone moderation events for testing
 type MockOzoneServer struct {
@@ -297,6 +396,10 @@ func createIdentityDirectory(plcClient plc.PLCClient, plcURL string) identity.Di
 }
 
 func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *TestHEPA {
+	return MustSetupHEPAWithCSAM(t, relayHost, plcClient, nil, "")
+}
+
+func MustSetupHEPAWithCSAM(t *testing.T, relayHost string, plcClient plc.PLCClient, csamServer *MockCSAMServer, csamToken string) *TestHEPA {
 	ctx, cancel := context.WithCancel(context.Background())
 	
 	// Create mock ozone server
@@ -339,6 +442,14 @@ func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *Tes
 		Host:   "https://public.api.bsky.app",
 	}
 
+	// Setup ruleset with optional CSAM detection
+	ruleset := rules.DefaultRules()
+	if csamServer != nil && csamToken != "" {
+		// Add CSAM detection rule
+		csamClient := visual.NewCSAMClient(csamServer.Host(), csamToken)
+		ruleset.BlobRules = append(ruleset.BlobRules, csamClient.CSAMDetectionBlobRule)
+	}
+
 	eng := &automod.Engine{
 		Logger:      logger,
 		Directory:   dir,
@@ -346,7 +457,7 @@ func MustSetupHEPA(t *testing.T, relayHost string, plcClient plc.PLCClient) *Tes
 		Sets:        sets,
 		Flags:       flags,
 		Cache:       cache,
-		Rules:       rules.DefaultRules(), // Use the same default rules as HEPA
+		Rules:       ruleset,
 		BskyClient:  &bskyClient,
 		OzoneClient: ozoneClient,
 		BlobClient:  util.RobustHTTPClient(),
@@ -615,6 +726,12 @@ func TestHEPAIntegrationMixedPosts(t *testing.T) {
 }
 
 // TestHEPAIntegrationImageMatchKids tests that bsky posts with kids.jpg trigger CSAM detection
+
+// Helper function to compute hash of embedded kids.jpg
+func getKidsJpgHash() string {
+	return fmt.Sprintf("%x", sha256.Sum256(kidsJpgData))
+}
+
 func TestHEPAIntegrationImageMatchKids(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping HEPA integration test in 'short' test mode")
@@ -637,11 +754,19 @@ func TestHEPAIntegrationImageMatchKids(t *testing.T) {
 	pds.RequestScraping(t, relay)
 	pds.BumpLimits(t, relay)
 	
+	// Create mock CSAM server and configure kids.jpg as CSAM
+	csamServer := NewMockCSAMServer(t)
+	defer csamServer.Close()
+	
+	// Configure kids.jpg to be detected as CSAM
+	kidsHash := getKidsJpgHash()
+	csamServer.SetImageCSAM(kidsHash, true)
+	
 	// Create test user first to get auth credentials
 	user := pds.MustNewUser(t, "testuser.testpds")
 	
-	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
-	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Setup HEPA with CSAM detection service
+	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
 	// Override collection filter to allow bsky posts
 	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
 	
@@ -685,17 +810,17 @@ func TestHEPAIntegrationImageMatchKids(t *testing.T) {
 			csamLabelFound = true
 		}
 		
-		// Check for image-match-test tag event
+		// Check for external-csam-detection tag event
 		if event.Event.ModerationDefs_ModEventTag != nil &&
 		   len(event.Event.ModerationDefs_ModEventTag.Add) > 0 &&
-		   event.Event.ModerationDefs_ModEventTag.Add[0] == "image-match-test" {
+		   event.Event.ModerationDefs_ModEventTag.Add[0] == "external-csam-detection" {
 			imageTagFound = true
 		}
 
 	}
 	
-	assert.True(csamLabelFound, "Expected CSAM label event from kids.jpg detection")
-	assert.True(imageTagFound, "Expected image-match-test tag event from kids.jpg detection")
+	assert.True(csamLabelFound, "Expected CSAM label event from external CSAM service")
+	assert.True(imageTagFound, "Expected external-csam-detection tag event from CSAM service")
 }
 
 // TestHEPAIntegrationImageMatchDog tests that bsky posts with dog.jpg do NOT trigger CSAM detection
@@ -720,8 +845,12 @@ func TestHEPAIntegrationImageMatchDog(t *testing.T) {
 	pds.RequestScraping(t, relay)
 	pds.BumpLimits(t, relay)
 	
-	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
-	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Create mock CSAM server (but don't configure dog.jpg as CSAM)
+	csamServer := NewMockCSAMServer(t)
+	defer csamServer.Close()
+	
+	// Setup HEPA with CSAM detection service
+	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
 	// Override collection filter to allow bsky posts
 	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
 	hepa.Run(t)
@@ -761,8 +890,12 @@ func TestHEPAIntegrationNoImage(t *testing.T) {
 	pds.RequestScraping(t, relay)
 	pds.BumpLimits(t, relay)
 	
-	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
-	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Create mock CSAM server (not used for this test, but needed for consistency)
+	csamServer := NewMockCSAMServer(t)
+	defer csamServer.Close()
+	
+	// Setup HEPA with CSAM detection service
+	hepa := MustSetupHEPAWithCSAM(t, "ws://"+relay.Host(), didr, csamServer, "test-csam-token")
 	// Override collection filter to allow bsky posts
 	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
 	hepa.Run(t)
