@@ -143,6 +143,9 @@ func main() {
 		flashes.FeedPost{},
 		flashes.FeedPost_Labels{},
 		flashes.FeedPost_ReplyRef{},
+		flashes.FeedPost_EmbedImages{},
+		flashes.FeedPost_Image{},
+		flashes.FeedPost_AspectRatio{},
 	); err != nil {
 		panic(err)
 	}
