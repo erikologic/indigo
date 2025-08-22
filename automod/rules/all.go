@@ -56,7 +56,6 @@ func DefaultRules() automod.RuleSet {
 		},
 		BlobRules: []automod.BlobRuleFunc{
 			//BlobVerifyRule,
-			ImageMatchTestRule,
 		},
 		OzoneEventRules: []automod.OzoneEventRuleFunc{
 			HarassmentProtectionOzoneEventRule,

@@ -46,6 +46,8 @@ type Config struct {
 	HiveAPIToken         string
 	AbyssHost            string
 	AbyssPassword        string
+	CSAMHost             string
+	CSAMAPIToken         string
 	RulesetName          string
 	RatelimitBypass      string
 	PreScreenHost        string
@@ -172,6 +174,12 @@ func NewServer(dir identity.Directory, config Config) (*Server, error) {
 		logger.Info("configuring abyss abusive image scanning")
 		ac := visual.NewAbyssClient(config.AbyssHost, config.AbyssPassword, config.RatelimitBypass)
 		extraBlobRules = append(extraBlobRules, ac.AbyssScanBlobRule)
+	}
+
+	if config.CSAMHost != "" && config.CSAMAPIToken != "" {
+		logger.Info("configuring CSAM detection service")
+		cc := visual.NewCSAMClient(config.CSAMHost, config.CSAMAPIToken)
+		extraBlobRules = append(extraBlobRules, cc.CSAMDetectionBlobRule)
 	}
 
 	var ruleset automod.RuleSet
