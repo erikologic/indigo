@@ -19,7 +19,8 @@ func init() {
 type FeedPost struct {
 	LexiconTypeID string `json:"$type,const=app.flashes.feed.post" cborgen:"$type,const=app.flashes.feed.post"`
 	// createdAt: Client-declared timestamp when this post was originally created.
-	CreatedAt string `json:"createdAt" cborgen:"createdAt"`
+	CreatedAt string                `json:"createdAt" cborgen:"createdAt"`
+	Embed     *FeedPost_EmbedImages `json:"embed,omitempty" cborgen:"embed,omitempty"`
 	// labels: Self-label values for this post. Effectively content warnings.
 	Labels *FeedPost_Labels `json:"labels,omitempty" cborgen:"labels,omitempty"`
 	// langs: Indicates human language of post primary text content.
@@ -29,6 +30,24 @@ type FeedPost struct {
 	Tags []string `json:"tags,omitempty" cborgen:"tags,omitempty"`
 	// text: The primary post content. May be an empty string, if there are embeds.
 	Text string `json:"text" cborgen:"text"`
+}
+
+// FeedPost_AspectRatio is a "aspectRatio" in the app.flashes.feed.post schema.
+type FeedPost_AspectRatio struct {
+	Height int64 `json:"height" cborgen:"height"`
+	Width  int64 `json:"width" cborgen:"width"`
+}
+
+// FeedPost_EmbedImages is a "embedImages" in the app.flashes.feed.post schema.
+type FeedPost_EmbedImages struct {
+	Images []*FeedPost_Image `json:"images" cborgen:"images"`
+}
+
+// FeedPost_Image is a "image" in the app.flashes.feed.post schema.
+type FeedPost_Image struct {
+	Alt         string                `json:"alt" cborgen:"alt"`
+	AspectRatio *FeedPost_AspectRatio `json:"aspectRatio,omitempty" cborgen:"aspectRatio,omitempty"`
+	Image       *util.LexBlob         `json:"image" cborgen:"image"`
 }
 
 // Self-label values for this post. Effectively content warnings.
