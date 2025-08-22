@@ -443,6 +443,54 @@ func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
 	}
 }
 
+// PostWithImage creates a bsky post with an image attachment
+func (u *TestUser) PostWithImage(t *testing.T, body string, imagePath string) *atproto.RepoStrongRef {
+	t.Helper()
+
+	ctx := context.TODO()
+
+	// Read the image file
+	imageData, err := os.ReadFile(imagePath)
+	if err != nil {
+		t.Fatalf("failed to read image file %s: %v", imagePath, err)
+	}
+
+	// Upload the blob
+	blobResp, err := atproto.RepoUploadBlob(ctx, u.client, bytes.NewReader(imageData))
+	if err != nil {
+		t.Fatalf("failed to upload blob: %v", err)
+	}
+
+	// Create post with image embed
+	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
+		Collection: "app.bsky.feed.post",
+		Repo:       u.did,
+		Record: &lexutil.LexiconTypeDecoder{Val: &bsky.FeedPost{
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Text:      body,
+			Embed: &bsky.FeedPost_Embed{
+				EmbedImages: &bsky.EmbedImages{
+					Images: []*bsky.EmbedImages_Image{
+						{
+							Image: blobResp.Blob,
+							Alt:   "Test image",
+						},
+					},
+				},
+			},
+		}},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return &atproto.RepoStrongRef{
+		Cid: resp.Cid,
+		Uri: resp.Uri,
+	}
+}
+
 func (u *TestUser) Like(t *testing.T, post *atproto.RepoStrongRef) {
 	t.Helper()
 

@@ -12,6 +12,7 @@ import (
 	"github.com/bluesky-social/indigo/models"
 	"github.com/ipfs/go-cid"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/multiformats/go-multihash"
 )
 
 func (s *Server) handleComAtprotoServerCreateAccount(ctx context.Context, body *comatprototypes.ServerCreateAccount_Input) (*comatprototypes.ServerCreateAccount_Output, error) {
@@ -124,7 +125,36 @@ func (s *Server) handleComAtprotoServerResetPassword(ctx context.Context, body *
 }
 
 func (s *Server) handleComAtprotoRepoUploadBlob(ctx context.Context, r io.Reader, contentType string) (*comatprototypes.RepoUploadBlob_Output, error) {
-	panic("not yet implemented")
+	// Read the blob data
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read blob data: %w", err)
+	}
+
+	// For testing purposes, create a simple CID from the data hash
+	h, err := multihash.Sum(data, multihash.SHA2_256, -1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash blob data: %w", err)
+	}
+
+	blobCid := cid.NewCidV1(cid.Raw, h)
+	cidStr := blobCid.String()
+
+	// Store the blob data in our in-memory store
+	s.blobStoreMu.Lock()
+	s.blobStore[cidStr] = data
+	s.blobStoreMu.Unlock()
+
+	// Create the blob response
+	blob := &lexutil.LexBlob{
+		Ref:      lexutil.LexLink(blobCid),
+		MimeType: contentType,
+		Size:     int64(len(data)),
+	}
+
+	return &comatprototypes.RepoUploadBlob_Output{
+		Blob: blob,
+	}, nil
 }
 
 func (s *Server) handleComAtprotoIdentityResolveHandle(ctx context.Context, handle string) (*comatprototypes.IdentityResolveHandle_Output, error) {
@@ -363,7 +393,16 @@ func (s *Server) handleComAtprotoSyncRequestCrawl(ctx context.Context, body *com
 }
 
 func (s *Server) handleComAtprotoSyncGetBlob(ctx context.Context, cid string, did string) (io.Reader, error) {
-	panic("nyi")
+	// Retrieve blob data from our in-memory store
+	s.blobStoreMu.RLock()
+	data, exists := s.blobStore[cid]
+	s.blobStoreMu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("blob not found: %s", cid)
+	}
+
+	return bytes.NewReader(data), nil
 }
 
 func (s *Server) handleComAtprotoSyncListBlobs(ctx context.Context, cursor string, did string, limit int, since string) (*comatprototypes.SyncListBlobs_Output, error) {

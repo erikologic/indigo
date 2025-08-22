@@ -34,7 +34,6 @@ import (
 
 const gtubeString = "XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X"
 
-
 // MockOzoneServer captures ozone moderation events for testing
 type MockOzoneServer struct {
 	server   *http.Server
@@ -613,6 +612,172 @@ func TestHEPAIntegrationMixedPosts(t *testing.T) {
 	}
 	assert.True(labelFound, "Expected spam label event from GTUBE flash")
 	assert.True(tagFound, "Expected gtube-flash tag event from GTUBE flash")
+}
+
+// TestHEPAIntegrationImageMatchKids tests that bsky posts with kids.jpg trigger CSAM detection
+func TestHEPAIntegrationImageMatchKids(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping HEPA integration test in 'short' test mode")
+	}
+
+	assert := assert.New(t)
+	require := require.New(t)
+	
+	// Setup test infrastructure
+	didr := TestPLC(t)
+	pds := MustSetupPDS(t, ".testpds", didr)
+	pds.Run(t)
+	defer pds.Cleanup()
+
+	relay := MustSetupRelay(t, didr, true)
+	relay.Run(t)
+	
+	// Configure relay to scrape from PDS
+	relay.tr.TrialHosts = []string{pds.RawHost()}
+	pds.RequestScraping(t, relay)
+	pds.BumpLimits(t, relay)
+	
+	// Create test user first to get auth credentials
+	user := pds.MustNewUser(t, "testuser.testpds")
+	
+	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
+	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Override collection filter to allow bsky posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	
+	hepa.Run(t)
+	defer hepa.Close()
+	postRef := user.PostWithImage(t, "This post contains kids.jpg", "kids.jpg")
+	
+	// Wait for processing and CSAM detection events
+	events := hepa.WaitForOzoneEvents(3, 3*time.Second) // Expecting csam label + image-match-test tag + csam-detected account tag
+	
+	// Verify ozone events were generated
+	require.GreaterOrEqual(len(events), 1, "Expected at least 1 ozone event for kids.jpg detection")
+	
+	// Verify events are for CSAM detection
+	csamLabelFound := false
+	imageTagFound := false
+	for _, event := range events {
+		// Verify event details
+		assert.Equal("did:plc:test-hepa-admin", event.CreatedBy)
+		require.NotNil(event.Event)
+		
+		// Verify the subject is correct (should be the bsky post record)
+		require.NotNil(event.Subject)
+		if event.Subject.RepoStrongRef != nil {
+			// Record-level event
+			assert.Equal(postRef.Uri, event.Subject.RepoStrongRef.Uri)
+			assert.Equal(postRef.Cid, event.Subject.RepoStrongRef.Cid)
+			assert.True(strings.Contains(event.Subject.RepoStrongRef.Uri, "app.bsky.feed.post"), 
+				"Expected event subject to be from bsky collection, got: %s", event.Subject.RepoStrongRef.Uri)
+		} else if event.Subject.AdminDefs_RepoRef != nil {
+			// Account-level event
+			assert.Equal(user.DID(), event.Subject.AdminDefs_RepoRef.Did)
+		} else {
+			t.Fatal("Expected either RepoStrongRef or AdminDefs_RepoRef in event subject")
+		}
+		
+		// Check for CSAM label event
+		if event.Event.ModerationDefs_ModEventLabel != nil && 
+		   len(event.Event.ModerationDefs_ModEventLabel.CreateLabelVals) > 0 &&
+		   event.Event.ModerationDefs_ModEventLabel.CreateLabelVals[0] == "csam" {
+			csamLabelFound = true
+		}
+		
+		// Check for image-match-test tag event
+		if event.Event.ModerationDefs_ModEventTag != nil &&
+		   len(event.Event.ModerationDefs_ModEventTag.Add) > 0 &&
+		   event.Event.ModerationDefs_ModEventTag.Add[0] == "image-match-test" {
+			imageTagFound = true
+		}
+
+	}
+	
+	assert.True(csamLabelFound, "Expected CSAM label event from kids.jpg detection")
+	assert.True(imageTagFound, "Expected image-match-test tag event from kids.jpg detection")
+}
+
+// TestHEPAIntegrationImageMatchDog tests that bsky posts with dog.jpg do NOT trigger CSAM detection
+func TestHEPAIntegrationImageMatchDog(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping HEPA integration test in 'short' test mode")
+	}
+
+	assert := assert.New(t)
+	
+	// Setup test infrastructure
+	didr := TestPLC(t)
+	pds := MustSetupPDS(t, ".testpds", didr)
+	pds.Run(t)
+	defer pds.Cleanup()
+
+	relay := MustSetupRelay(t, didr, true)
+	relay.Run(t)
+	
+	// Configure relay to scrape from PDS
+	relay.tr.TrialHosts = []string{pds.RawHost()}
+	pds.RequestScraping(t, relay)
+	pds.BumpLimits(t, relay)
+	
+	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
+	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Override collection filter to allow bsky posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	hepa.Run(t)
+	defer hepa.Close()
+	
+	// Create test user and post with dog.jpg image
+	user := pds.MustNewUser(t, "testuser.testpds")
+	user.PostWithImage(t, "This post contains dog.jpg", "dog.jpg")
+	
+	// Wait a moment for processing
+	time.Sleep(500 * time.Millisecond)
+	
+	// Verify no ozone events were generated
+	events := hepa.GetOzoneEvents()
+	assert.Equal(0, len(events), "Expected no ozone events for dog.jpg image, got %d", len(events))
+}
+
+// TestHEPAIntegrationNoImage tests that normal bsky posts without images do NOT trigger image detection
+func TestHEPAIntegrationNoImage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping HEPA integration test in 'short' test mode")
+	}
+
+	assert := assert.New(t)
+	
+	// Setup test infrastructure
+	didr := TestPLC(t)
+	pds := MustSetupPDS(t, ".testpds", didr)
+	pds.Run(t)
+	defer pds.Cleanup()
+
+	relay := MustSetupRelay(t, didr, true)
+	relay.Run(t)
+	
+	// Configure relay to scrape from PDS
+	relay.tr.TrialHosts = []string{pds.RawHost()}
+	pds.RequestScraping(t, relay)
+	pds.BumpLimits(t, relay)
+	
+	// Setup HEPA to subscribe to relay (no collection filtering for bsky posts)
+	hepa := MustSetupHEPA(t, "ws://"+relay.Host(), didr)
+	// Override collection filter to allow bsky posts
+	hepa.consumer.(*consumer.FirehoseConsumer).CollectionFilters = []string{"app.bsky."}
+	hepa.Run(t)
+	defer hepa.Close()
+	
+	// Create test user and post normal content without images
+	user := pds.MustNewUser(t, "testuser.testpds")
+	user.Post(t, "This is a normal post without any images")
+	
+	// Wait a moment for processing
+	time.Sleep(500 * time.Millisecond)
+	
+	// Verify no ozone events were generated
+	events := hepa.GetOzoneEvents()
+	assert.Equal(0, len(events), "Expected no ozone events for post without images, got %d", len(events))
 }
 
 // TestHEPAIntegrationFlashesOnly tests that only flashes posts are processed while bsky posts are filtered out
