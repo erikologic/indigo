@@ -24,3 +24,13 @@ var abyssAPICount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "automod_abyss_api_count",
 	Help: "Number of abyss image scanning API calls, by HTTP status code",
 }, []string{"status"})
+
+var csamAPIDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+	Name: "automod_csam_api_duration_sec",
+	Help: "Duration of CSAM detection API calls",
+})
+
+var csamAPICount = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "automod_csam_api_count",
+	Help: "Number of CSAM detection API calls, by HTTP status code",
+}, []string{"status"})
