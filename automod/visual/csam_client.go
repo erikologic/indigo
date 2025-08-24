@@ -18,9 +18,9 @@ import (
 )
 
 type CSAMClient struct {
-	Client    http.Client
-	ApiToken  string
-	Host      string
+	Client   http.Client
+	ApiToken string
+	Host     string
 }
 
 // Response structure for CSAM detection service
@@ -39,7 +39,7 @@ func NewCSAMClient(host, token string) *CSAMClient {
 }
 
 func (cc *CSAMClient) CheckBlob(ctx context.Context, blob lexutil.LexBlob, blobBytes []byte) (*CSAMResp, error) {
-	slog.Debug("sending blob to CSAM detection service", "cid", blob.Ref.String(), "mimetype", blob.MimeType, "size", len(blobBytes))
+	slog.Info("CSAM client: sending blob to detection service", "cid", blob.Ref.String(), "mimetype", blob.MimeType, "size", len(blobBytes), "host", cc.Host)
 
 	// Create multipart form for image upload
 	body := &bytes.Buffer{}
@@ -78,25 +78,29 @@ func (cc *CSAMClient) CheckBlob(ctx context.Context, blob lexutil.LexBlob, blobB
 	req = req.WithContext(ctx)
 	res, err := cc.Client.Do(req)
 	if err != nil {
+		slog.Error("CSAM client: API request failed", "cid", blob.Ref.String(), "err", err)
 		return nil, fmt.Errorf("CSAM API request failed: %v", err)
 	}
 	defer res.Body.Close()
 
 	csamAPICount.WithLabelValues(fmt.Sprint(res.StatusCode)).Inc()
 	if res.StatusCode != 200 {
+		slog.Error("CSAM client: API returned non-200", "cid", blob.Ref.String(), "status", res.StatusCode)
 		return nil, fmt.Errorf("CSAM API request failed statusCode=%d", res.StatusCode)
 	}
 
 	respBytes, err := io.ReadAll(res.Body)
 	if err != nil {
+		slog.Error("CSAM client: failed to read API response body", "cid", blob.Ref.String(), "err", err)
 		return nil, fmt.Errorf("failed to read CSAM API resp body: %v", err)
 	}
 
 	var respObj CSAMResp
 	if err := json.Unmarshal(respBytes, &respObj); err != nil {
+		slog.Error("CSAM client: failed to parse API response JSON", "cid", blob.Ref.String(), "err", err, "body", string(respBytes))
 		return nil, fmt.Errorf("failed to parse CSAM API resp JSON: %v", err)
 	}
 
-	slog.Info("csam-api-response", "cid", blob.Ref.String(), "is_csam", respObj.IsCSAM, "confidence", respObj.Confidence)
+	slog.Info("CSAM client: API response", "cid", blob.Ref.String(), "is_csam", respObj.IsCSAM, "confidence", respObj.Confidence, "message", respObj.Message)
 	return &respObj, nil
 }
