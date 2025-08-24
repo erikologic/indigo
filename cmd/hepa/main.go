@@ -149,6 +149,16 @@ func run(args []string) error {
 			Usage:   "secret token for prescreen server",
 			EnvVars: []string{"HEPA_PRESCREEN_TOKEN"},
 		},
+		&cli.StringFlag{
+			Name:    "csam-host",
+			Usage:   "host for CSAM detection service (scheme, host, port)",
+			EnvVars: []string{"HEPA_CSAM_HOST"},
+		},
+		&cli.StringFlag{
+			Name:    "csam-api-token",
+			Usage:   "API token for CSAM detection service",
+			EnvVars: []string{"HEPA_CSAM_API_TOKEN"},
+		},
 		&cli.DurationFlag{
 			Name:    "report-dupe-period",
 			Usage:   "time period within which automod will not re-report an account for the same reasonType",
@@ -300,6 +310,8 @@ var runCmd = &cli.Command{
 				RulesetName:          cctx.String("ruleset"),
 				PreScreenHost:        cctx.String("prescreen-host"),
 				PreScreenToken:       cctx.String("prescreen-token"),
+				CSAMHost:             cctx.String("csam-host"),
+				CSAMAPIToken:         cctx.String("csam-api-token"),
 				ReportDupePeriod:     cctx.Duration("report-dupe-period"),
 				QuotaModReportDay:    cctx.Int("quota-mod-report-day"),
 				QuotaModTakedownDay:  cctx.Int("quota-mod-takedown-day"),
@@ -401,6 +413,8 @@ func configEphemeralServer(cctx *cli.Context) (*Server, error) {
 			RulesetName:     cctx.String("ruleset"),
 			PreScreenHost:   cctx.String("prescreen-host"),
 			PreScreenToken:  cctx.String("prescreen-token"),
+			CSAMHost:        cctx.String("csam-host"),
+			CSAMAPIToken:    cctx.String("csam-api-token"),
 		},
 	)
 }
