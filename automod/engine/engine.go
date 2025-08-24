@@ -67,73 +67,73 @@ type EngineConfig struct {
 //
 // This method can be called concurrently, though cached state may end up inconsistent if multiple events for the same account (DID) are processed in parallel.
 func (eng *Engine) ProcessIdentityEvent(ctx context.Context, evt comatproto.SyncSubscribeRepos_Identity) error {
-	eventProcessCount.WithLabelValues("identity").Inc()
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start)
-		eventProcessDuration.WithLabelValues("identity").Observe(duration.Seconds())
-	}()
+	// eventProcessCount.WithLabelValues("identity").Inc()
+	// start := time.Now()
+	// defer func() {
+	// 	duration := time.Since(start)
+	// 	eventProcessDuration.WithLabelValues("identity").Observe(duration.Seconds())
+	// }()
 
-	did, err := syntax.ParseDID(evt.Did)
-	if err != nil {
-		return fmt.Errorf("bad DID in repo #identity event (%s): %w", evt.Did, err)
-	}
+	// did, err := syntax.ParseDID(evt.Did)
+	// if err != nil {
+	// 	return fmt.Errorf("bad DID in repo #identity event (%s): %w", evt.Did, err)
+	// }
 
-	// similar to an HTTP server, we want to recover any panics from rule execution
-	defer func() {
-		if r := recover(); r != nil {
-			eng.Logger.Error("automod event execution exception", "err", r, "did", did, "type", "identity")
-			eventErrorCount.WithLabelValues("identity").Inc()
-		}
-	}()
-	var cancel context.CancelFunc
-	if eng.Config.IdentityEventTimeout != 0 {
-		ctx, cancel = context.WithTimeout(ctx, eng.Config.IdentityEventTimeout)
-		defer cancel()
-	}
+	// // similar to an HTTP server, we want to recover any panics from rule execution
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		eng.Logger.Error("automod event execution exception", "err", r, "did", did, "type", "identity")
+	// 		eventErrorCount.WithLabelValues("identity").Inc()
+	// 	}
+	// }()
+	// var cancel context.CancelFunc
+	// if eng.Config.IdentityEventTimeout != 0 {
+	// 	ctx, cancel = context.WithTimeout(ctx, eng.Config.IdentityEventTimeout)
+	// 	defer cancel()
+	// }
 
-	// first purge any caches; we need to re-resolve from scratch on identity updates
-	if err := eng.PurgeAccountCaches(ctx, did); err != nil {
-		eng.Logger.Error("failed to purge identity cache; identity rule may not run correctly", "err", err)
-	}
-	// TODO(bnewbold): if it was a tombstone, this might fail
-	ident, err := eng.Directory.LookupDID(ctx, did)
-	if err != nil {
-		eventErrorCount.WithLabelValues("identity").Inc()
-		return fmt.Errorf("resolving identity: %w", err)
-	}
-	if ident == nil {
-		eventErrorCount.WithLabelValues("identity").Inc()
-		return fmt.Errorf("identity not found for DID: %s", did.String())
-	}
+	// // first purge any caches; we need to re-resolve from scratch on identity updates
+	// if err := eng.PurgeAccountCaches(ctx, did); err != nil {
+	// 	eng.Logger.Error("failed to purge identity cache; identity rule may not run correctly", "err", err)
+	// }
+	// // TODO(bnewbold): if it was a tombstone, this might fail
+	// ident, err := eng.Directory.LookupDID(ctx, did)
+	// if err != nil {
+	// 	eventErrorCount.WithLabelValues("identity").Inc()
+	// 	return fmt.Errorf("resolving identity: %w", err)
+	// }
+	// if ident == nil {
+	// 	eventErrorCount.WithLabelValues("identity").Inc()
+	// 	return fmt.Errorf("identity not found for DID: %s", did.String())
+	// }
 
-	var am *AccountMeta
-	if !eng.Config.SkipAccountMeta {
-		am, err = eng.GetAccountMeta(ctx, ident)
-		if err != nil {
-			eventErrorCount.WithLabelValues("identity").Inc()
-			return fmt.Errorf("failed to fetch account metadata: %w", err)
-		}
-	} else {
-		am = &AccountMeta{
-			Identity: ident,
-			Profile:  ProfileSummary{},
-		}
-	}
-	ac := NewAccountContext(ctx, eng, *am)
-	if err := eng.Rules.CallIdentityRules(&ac); err != nil {
-		eventErrorCount.WithLabelValues("identity").Inc()
-		return fmt.Errorf("rule execution failed: %w", err)
-	}
-	eng.CanonicalLogLineAccount(&ac)
-	if err := eng.persistAccountModActions(&ac); err != nil {
-		eventErrorCount.WithLabelValues("identity").Inc()
-		return fmt.Errorf("failed to persist actions for identity event: %w", err)
-	}
-	if err := eng.persistCounters(ctx, ac.effects); err != nil {
-		eventErrorCount.WithLabelValues("identity").Inc()
-		return fmt.Errorf("failed to persist counters for identity event: %w", err)
-	}
+	// var am *AccountMeta
+	// if !eng.Config.SkipAccountMeta {
+	// 	am, err = eng.GetAccountMeta(ctx, ident)
+	// 	if err != nil {
+	// 		eventErrorCount.WithLabelValues("identity").Inc()
+	// 		return fmt.Errorf("failed to fetch account metadata: %w", err)
+	// 	}
+	// } else {
+	// 	am = &AccountMeta{
+	// 		Identity: ident,
+	// 		Profile:  ProfileSummary{},
+	// 	}
+	// }
+	// ac := NewAccountContext(ctx, eng, *am)
+	// if err := eng.Rules.CallIdentityRules(&ac); err != nil {
+	// 	eventErrorCount.WithLabelValues("identity").Inc()
+	// 	return fmt.Errorf("rule execution failed: %w", err)
+	// }
+	// eng.CanonicalLogLineAccount(&ac)
+	// if err := eng.persistAccountModActions(&ac); err != nil {
+	// 	eventErrorCount.WithLabelValues("identity").Inc()
+	// 	return fmt.Errorf("failed to persist actions for identity event: %w", err)
+	// }
+	// if err := eng.persistCounters(ctx, ac.effects); err != nil {
+	// 	eventErrorCount.WithLabelValues("identity").Inc()
+	// 	return fmt.Errorf("failed to persist counters for identity event: %w", err)
+	// }
 	return nil
 }
 
@@ -141,73 +141,73 @@ func (eng *Engine) ProcessIdentityEvent(ctx context.Context, evt comatproto.Sync
 //
 // This method can be called concurrently, though cached state may end up inconsistent if multiple events for the same account (DID) are processed in parallel.
 func (eng *Engine) ProcessAccountEvent(ctx context.Context, evt comatproto.SyncSubscribeRepos_Account) error {
-	eventProcessCount.WithLabelValues("account").Inc()
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start)
-		eventProcessDuration.WithLabelValues("account").Observe(duration.Seconds())
-	}()
+	// eventProcessCount.WithLabelValues("account").Inc()
+	// start := time.Now()
+	// defer func() {
+	// 	duration := time.Since(start)
+	// 	eventProcessDuration.WithLabelValues("account").Observe(duration.Seconds())
+	// }()
 
-	did, err := syntax.ParseDID(evt.Did)
-	if err != nil {
-		return fmt.Errorf("bad DID in repo #account event (%s): %w", evt.Did, err)
-	}
+	// did, err := syntax.ParseDID(evt.Did)
+	// if err != nil {
+	// 	return fmt.Errorf("bad DID in repo #account event (%s): %w", evt.Did, err)
+	// }
 
-	// similar to an HTTP server, we want to recover any panics from rule execution
-	defer func() {
-		if r := recover(); r != nil {
-			eng.Logger.Error("automod event execution exception", "err", r, "did", did, "type", "account")
-			eventErrorCount.WithLabelValues("account").Inc()
-		}
-	}()
-	var cancel context.CancelFunc
-	if eng.Config.IdentityEventTimeout != 0 {
-		ctx, cancel = context.WithTimeout(ctx, eng.Config.IdentityEventTimeout)
-		defer cancel()
-	}
+	// // similar to an HTTP server, we want to recover any panics from rule execution
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		eng.Logger.Error("automod event execution exception", "err", r, "did", did, "type", "account")
+	// 		eventErrorCount.WithLabelValues("account").Inc()
+	// 	}
+	// }()
+	// var cancel context.CancelFunc
+	// if eng.Config.IdentityEventTimeout != 0 {
+	// 	ctx, cancel = context.WithTimeout(ctx, eng.Config.IdentityEventTimeout)
+	// 	defer cancel()
+	// }
 
-	// first purge any caches; we need to re-resolve from scratch on account updates
-	if err := eng.PurgeAccountCaches(ctx, did); err != nil {
-		eng.Logger.Error("failed to purge account cache; account rule may not run correctly", "err", err)
-	}
-	// TODO(bnewbold): if it was a tombstone, this might fail
-	ident, err := eng.Directory.LookupDID(ctx, did)
-	if err != nil {
-		eventErrorCount.WithLabelValues("account").Inc()
-		return fmt.Errorf("resolving identity: %w", err)
-	}
-	if ident == nil {
-		eventErrorCount.WithLabelValues("account").Inc()
-		return fmt.Errorf("identity not found for DID: %s", did.String())
-	}
+	// // first purge any caches; we need to re-resolve from scratch on account updates
+	// if err := eng.PurgeAccountCaches(ctx, did); err != nil {
+	// 	eng.Logger.Error("failed to purge account cache; account rule may not run correctly", "err", err)
+	// }
+	// // TODO(bnewbold): if it was a tombstone, this might fail
+	// ident, err := eng.Directory.LookupDID(ctx, did)
+	// if err != nil {
+	// 	eventErrorCount.WithLabelValues("account").Inc()
+	// 	return fmt.Errorf("resolving identity: %w", err)
+	// }
+	// if ident == nil {
+	// 	eventErrorCount.WithLabelValues("account").Inc()
+	// 	return fmt.Errorf("identity not found for DID: %s", did.String())
+	// }
 
-	var am *AccountMeta
-	if !eng.Config.SkipAccountMeta {
-		am, err = eng.GetAccountMeta(ctx, ident)
-		if err != nil {
-			eventErrorCount.WithLabelValues("identity").Inc()
-			return fmt.Errorf("failed to fetch account metadata: %w", err)
-		}
-	} else {
-		am = &AccountMeta{
-			Identity: ident,
-			Profile:  ProfileSummary{},
-		}
-	}
-	ac := NewAccountContext(ctx, eng, *am)
-	if err := eng.Rules.CallAccountRules(&ac); err != nil {
-		eventErrorCount.WithLabelValues("account").Inc()
-		return fmt.Errorf("rule execution failed: %w", err)
-	}
-	eng.CanonicalLogLineAccount(&ac)
-	if err := eng.persistAccountModActions(&ac); err != nil {
-		eventErrorCount.WithLabelValues("account").Inc()
-		return fmt.Errorf("failed to persist actions for account event: %w", err)
-	}
-	if err := eng.persistCounters(ctx, ac.effects); err != nil {
-		eventErrorCount.WithLabelValues("account").Inc()
-		return fmt.Errorf("failed to persist counters for account event: %w", err)
-	}
+	// var am *AccountMeta
+	// if !eng.Config.SkipAccountMeta {
+	// 	am, err = eng.GetAccountMeta(ctx, ident)
+	// 	if err != nil {
+	// 		eventErrorCount.WithLabelValues("identity").Inc()
+	// 		return fmt.Errorf("failed to fetch account metadata: %w", err)
+	// 	}
+	// } else {
+	// 	am = &AccountMeta{
+	// 		Identity: ident,
+	// 		Profile:  ProfileSummary{},
+	// 	}
+	// }
+	// ac := NewAccountContext(ctx, eng, *am)
+	// if err := eng.Rules.CallAccountRules(&ac); err != nil {
+	// 	eventErrorCount.WithLabelValues("account").Inc()
+	// 	return fmt.Errorf("rule execution failed: %w", err)
+	// }
+	// eng.CanonicalLogLineAccount(&ac)
+	// if err := eng.persistAccountModActions(&ac); err != nil {
+	// 	eventErrorCount.WithLabelValues("account").Inc()
+	// 	return fmt.Errorf("failed to persist actions for account event: %w", err)
+	// }
+	// if err := eng.persistCounters(ctx, ac.effects); err != nil {
+	// 	eventErrorCount.WithLabelValues("account").Inc()
+	// 	return fmt.Errorf("failed to persist counters for account event: %w", err)
+	// }
 	return nil
 }
 
