@@ -20,7 +20,7 @@ services:
       - HEPA_OZONE_DID=did:plc:7kykji2z2jie3tcaz6jypwsf
       - ATP_PDS_HOST=https://user.eurosky.social
       - HEPA_COLLECTION_FILTER=app.flashes.feed.post
-      - HEPA_CSAM_HOST=http://mock-csam:8080/api/v1/check-csam
+      - HEPA_CSAM_HOST=http://mock-csam:8080
       - HEPA_CSAM_API_TOKEN=test-csam-token
     ports:
       - "2210:2210"
