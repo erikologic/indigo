@@ -11,8 +11,13 @@ WORKDIR /dockerbuild
 
 # timezone data for alpine builds
 ENV GOEXPERIMENT=loopvar
-RUN GIT_VERSION=$(git describe --tags --long --always) && \
-    go build -tags timetzdata -o /relay ./cmd/relay
+
+# TODO: Create a docker repo and build from there when launching local-atproto
+# Need to change this code for local-atproto cause in my local project this is 
+# a submodule and when pushing into the building context there would be no .git folder
+# RUN GIT_VERSION=$(git describe --tags --long --always) && \
+#     go build -tags timetzdata -o /relay ./cmd/relay
+RUN go build -tags timetzdata -o /relay ./cmd/relay
 
 ### Build Frontend stage
 FROM node:18-alpine as web-builder
