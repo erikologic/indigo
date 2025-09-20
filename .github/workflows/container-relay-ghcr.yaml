@@ -17,6 +17,10 @@ jobs:
       packages: write
       id-token: write
 
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64, linux/arm/v7]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -52,5 +56,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-
+          platforms: ${{ matrix.platform }}
