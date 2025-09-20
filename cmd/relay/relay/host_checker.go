@@ -42,6 +42,28 @@ func NewHostClient(userAgent string) *HostClient {
 	}
 }
 
+func NewHostClientWithPrivateNetworks(userAgent string) *HostClient {
+	if userAgent == "" {
+		userAgent = "indigo-relay (atproto-relay)"
+	}
+	c := http.Client{
+		Timeout: 5 * time.Second,
+		// Use default transport without SSRF protection for private networks
+		Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	return &HostClient{
+		Client:    &c,
+		UserAgent: userAgent,
+	}
+}
+
 func (hc *HostClient) CheckHost(ctx context.Context, host string) error {
 	xrpcc := xrpc.Client{
 		Client:    hc.Client,

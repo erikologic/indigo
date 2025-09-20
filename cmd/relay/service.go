@@ -23,7 +23,8 @@ type Service struct {
 	relay  *relay.Relay
 	config ServiceConfig
 
-	siblingClient http.Client
+	siblingClient           http.Client
+	privateNetworkChecker   *relay.HostClient
 }
 
 type ServiceConfig struct {
@@ -41,6 +42,9 @@ type ServiceConfig struct {
 
 	// if true, allows non-SSL hosts to be added via public requestCrawl
 	AllowInsecureHosts bool
+
+	// if true, allows admin requestCrawl to access private network addresses
+	AllowPrivateNetworks bool
 }
 
 func DefaultServiceConfig() *ServiceConfig {
@@ -62,6 +66,11 @@ func NewService(r *relay.Relay, config *ServiceConfig) (*Service, error) {
 		siblingClient: http.Client{
 			Timeout: 10 * time.Second,
 		},
+	}
+
+	// Initialize private network checker if enabled
+	if config.AllowPrivateNetworks {
+		svc.privateNetworkChecker = relay.NewHostClientWithPrivateNetworks(r.Config.UserAgent)
 	}
 
 	return svc, nil

@@ -57,6 +57,9 @@ type SlurperConfig struct {
 	TrustedPerHourLimit    int64
 	TrustedPerDayLimit     int64
 
+	// if true, allows websocket connections to private network addresses
+	AllowPrivateNetworks bool
+
 	// callback functions. technically optional but effectively required
 	PersistCursorCallback     PersistCursorFunc
 	PersistHostStatusCallback PersistHostStatusFunc
@@ -298,7 +301,8 @@ func (s *Slurper) subscribeWithRedialer(ctx context.Context, host *models.Host, 
 	}
 
 	// if this isn't a localhost / private connection, then we should enable SSRF protections
-	if !host.NoSSL {
+	// unless private networks are explicitly allowed
+	if !host.NoSSL && !s.Config.AllowPrivateNetworks {
 		netDialer := ssrf.PublicOnlyDialer()
 		d.NetDialContext = netDialer.DialContext
 	}
