@@ -43,7 +43,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,enable=true,priority=100,prefix=relay:,suffix=,format=long
-            latest
+            relay-latest
 
       - name: Build and push Docker image
         id: build-and-push
