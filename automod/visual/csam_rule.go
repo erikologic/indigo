@@ -39,7 +39,7 @@ func (cc *CSAMClient) CSAMDetectionBlobRule(c *automod.RecordContext, blob lexut
 		// Notify moderators
 		c.Notify("slack")
 		// Report to moderation system
-		c.ReportRecord(automod.ReportReasonOther, "CSAM detected by external service")
+		c.ReportRecord(automod.ReportReasonViolation, "[automod] CSAM detected by external service")
 	} else {
 		c.Logger.Debug("Content cleared by CSAM service", "cid", blob.Ref.String(), "confidence", resp.Confidence, "message", resp.Message)
 	}
