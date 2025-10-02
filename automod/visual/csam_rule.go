@@ -38,8 +38,8 @@ func (cc *CSAMClient) CSAMDetectionBlobRule(c *automod.RecordContext, blob lexut
 		c.AddAccountTag("csam-detected")
 		// Notify moderators
 		c.Notify("slack")
-		// Report to moderation system
-		c.ReportRecord(automod.ReportReasonViolation, "[automod] CSAM detected by external service")
+		// Report to moderation system using new Ozone reason type
+		c.ReportRecord("tools.ozone.report.defs#reasonChildSafetyCSAM", "[automod] CSAM detected by external service")
 	} else {
 		c.Logger.Debug("Content cleared by CSAM service", "cid", blob.Ref.String(), "confidence", resp.Confidence, "message", resp.Message)
 	}
