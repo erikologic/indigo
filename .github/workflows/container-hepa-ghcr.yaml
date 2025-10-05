@@ -5,7 +5,6 @@ env:
   USERNAME: ${{ github.actor }}
   PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
