@@ -1,4 +1,4 @@
-name: container-hepa-ghcr
+name: container-relay-ghcr
 on: [push]
 env:
   REGISTRY: ghcr.io
@@ -48,20 +48,20 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-,suffix=,format=long
-            type=raw,value=hepa-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            hepa-latest
+            type=sha,enable=true,priority=100,prefix=relay-,suffix=,format=long
+            type=raw,value=relay-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            relay-latest
 
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./cmd/hepa/Dockerfile
+          file: ./cmd/relay/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=hepa-${{ steps.platform.outputs.cache }}
-          cache-to: type=gha,mode=max,scope=hepa-${{ steps.platform.outputs.cache }}
+          cache-from: type=gha,scope=relay-${{ steps.platform.outputs.cache }}
+          cache-to: type=gha,mode=max,scope=relay-${{ steps.platform.outputs.cache }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
@@ -116,9 +116,9 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-,suffix=,format=long
-            type=raw,value=hepa-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            hepa-latest
+            type=sha,enable=true,priority=100,prefix=relay-,suffix=,format=long
+            type=raw,value=relay-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            relay-latest
 
       - name: Create manifest list and push
         id: merge
@@ -150,5 +150,5 @@ jobs:
           DATETIME_TAG=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "hepa-$DATETIME_TAG" -m "Release hepa-$DATETIME_TAG"
-          git push origin "hepa-$DATETIME_TAG"
+          git tag -a "relay-$DATETIME_TAG" -m "Release relay-$DATETIME_TAG"
+          git push origin "relay-$DATETIME_TAG"
