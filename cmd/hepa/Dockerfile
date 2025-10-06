@@ -6,12 +6,22 @@
 FROM golang:1.24-alpine3.22 AS build-env
 RUN apk add --no-cache build-base make git
 
-ADD . /dockerbuild
 WORKDIR /dockerbuild
+
+# Cache Go module dependencies separately for better layer caching
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
+
+# Copy source code and build
+COPY . .
 
 # timezone data for alpine builds
 ENV GOEXPERIMENT=loopvar
-RUN GIT_VERSION=$(git describe --tags --long --always) && \
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
     go build -tags timetzdata -o /hepa ./cmd/hepa
 
 ### Run stage
