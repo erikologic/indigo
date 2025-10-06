@@ -150,6 +150,16 @@ func run(args []string) error {
 			Usage:   "secret token for prescreen server",
 			Sources: cli.EnvVars("HEPA_PRESCREEN_TOKEN"),
 		},
+		&cli.StringFlag{
+			Name:    "csam-host",
+			Usage:   "host for CSAM detection service (scheme, host, port)",
+			Sources: cli.EnvVars("HEPA_CSAM_HOST"),
+		},
+		&cli.StringFlag{
+			Name:    "csam-api-token",
+			Usage:   "API token for CSAM detection service",
+			Sources: cli.EnvVars("HEPA_CSAM_API_TOKEN"),
+		},
 		&cli.DurationFlag{
 			Name:    "report-dupe-period",
 			Usage:   "time period within which automod will not re-report an account for the same reasonType",
@@ -191,6 +201,11 @@ func run(args []string) error {
 			Usage:   "total processing time for ozone events (including setup, rules, and persisting)",
 			Sources: cli.EnvVars("HEPA_OZONE_EVENT_TIMEOUT"),
 			Value:   30 * time.Second,
+		},
+		&cli.StringSliceFlag{
+			Name:    "collection-filter",
+			Usage:   "collection prefixes to filter for (e.g., 'api.flashes.', 'app.bsky.feed.post'). If empty, processes all collections",
+			Sources: cli.EnvVars("HEPA_COLLECTION_FILTER"),
 		},
 	}
 
@@ -295,6 +310,9 @@ var runCmd = &cli.Command{
 				RulesetName:          cmd.String("ruleset"),
 				PreScreenHost:        cmd.String("prescreen-host"),
 				PreScreenToken:       cmd.String("prescreen-token"),
+				CSAMHost:             cmd.String("csam-host"),
+				CSAMAPIToken:         cmd.String("csam-api-token"),
+				CollectionFilter:     cmd.StringSlice("collection-filter"),
 				ReportDupePeriod:     cmd.Duration("report-dupe-period"),
 				QuotaModReportDay:    cmd.Int("quota-mod-report-day"),
 				QuotaModTakedownDay:  cmd.Int("quota-mod-takedown-day"),
@@ -344,11 +362,12 @@ var runCmd = &cli.Command{
 		relayHost := cmd.String("atp-relay-host")
 		if relayHost != "" {
 			fc := consumer.FirehoseConsumer{
-				Engine:      srv.Engine,
-				Logger:      logger.With("subsystem", "firehose-consumer"),
-				Host:        cmd.String("atp-relay-host"),
-				Parallelism: cmd.Int("firehose-parallelism"),
-				RedisClient: srv.RedisClient,
+				Engine:            srv.Engine,
+				Logger:            logger.With("subsystem", "firehose-consumer"),
+				Host:              cmd.String("atp-relay-host"),
+				Parallelism:       cmd.Int("firehose-parallelism"),
+				RedisClient:       srv.RedisClient,
+				CollectionFilters: cmd.StringSlice("collection-filter"),
 			}
 
 			go func() {
@@ -379,22 +398,25 @@ func configEphemeralServer(cmd *cli.Command) (*Server, error) {
 	return NewServer(
 		dir,
 		Config{
-			Logger:          logger,
-			BskyHost:        cmd.String("atp-bsky-host"),
-			OzoneHost:       cmd.String("atp-ozone-host"),
-			OzoneDID:        cmd.String("ozone-did"),
-			OzoneAdminToken: cmd.String("ozone-admin-token"),
-			PDSHost:         cmd.String("atp-pds-host"),
-			PDSAdminToken:   cmd.String("pds-admin-token"),
-			SetsFileJSON:    cmd.String("sets-json-path"),
-			RedisURL:        cmd.String("redis-url"),
-			HiveAPIToken:    cmd.String("hiveai-api-token"),
-			AbyssHost:       cmd.String("abyss-host"),
-			AbyssPassword:   cmd.String("abyss-password"),
-			RatelimitBypass: cmd.String("ratelimit-bypass"),
-			RulesetName:     cmd.String("ruleset"),
-			PreScreenHost:   cmd.String("prescreen-host"),
-			PreScreenToken:  cmd.String("prescreen-token"),
+			Logger:           logger,
+			BskyHost:         cmd.String("atp-bsky-host"),
+			OzoneHost:        cmd.String("atp-ozone-host"),
+			OzoneDID:         cmd.String("ozone-did"),
+			OzoneAdminToken:  cmd.String("ozone-admin-token"),
+			PDSHost:          cmd.String("atp-pds-host"),
+			PDSAdminToken:    cmd.String("pds-admin-token"),
+			SetsFileJSON:     cmd.String("sets-json-path"),
+			RedisURL:         cmd.String("redis-url"),
+			HiveAPIToken:     cmd.String("hiveai-api-token"),
+			AbyssHost:        cmd.String("abyss-host"),
+			AbyssPassword:    cmd.String("abyss-password"),
+			RatelimitBypass:  cmd.String("ratelimit-bypass"),
+			RulesetName:      cmd.String("ruleset"),
+			PreScreenHost:    cmd.String("prescreen-host"),
+			PreScreenToken:   cmd.String("prescreen-token"),
+			CSAMHost:         cmd.String("csam-host"),
+			CSAMAPIToken:     cmd.String("csam-api-token"),
+			CollectionFilter: cmd.StringSlice("collection-filter"),
 		},
 	)
 }
