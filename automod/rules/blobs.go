@@ -22,3 +22,4 @@ func BlobVerifyRule(c *automod.RecordContext, blob lexutil.LexBlob, data []byte)
 
 	return nil
 }
+
