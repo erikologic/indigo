@@ -1,9 +1,11 @@
 package rules
 
 import (
+	"bytes"
 	"strings"
 
 	appbsky "github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/flashes"
 	"github.com/bluesky-social/indigo/automod"
 )
 
@@ -29,5 +31,28 @@ func GtubeProfileRule(c *automod.RecordContext, profile *appbsky.ActorProfile) e
 		c.Notify("slack")
 		c.AddAccountTag("gtuber-account")
 	}
+	return nil
+}
+
+var _ automod.RecordRuleFunc = GtubeFlashRule
+
+func GtubeFlashRule(c *automod.RecordContext) error {
+	if c.RecordOp.Collection.String() != "app.flashes.feed.post" {
+		return nil
+	}
+
+	var flashPost flashes.FeedPost
+	if err := flashPost.UnmarshalCBOR(bytes.NewReader(c.RecordOp.RecordCBOR)); err != nil {
+		// If parsing fails, skip this record
+		return nil
+	}
+
+	// Check for GTUBE string in the text
+	if strings.Contains(flashPost.Text, gtubeString) {
+		c.AddRecordLabel("spam")
+		c.Notify("slack")
+		c.AddRecordTag("gtube-flash")
+	}
+	
 	return nil
 }

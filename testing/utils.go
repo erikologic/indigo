@@ -21,6 +21,7 @@ import (
 
 	atproto "github.com/bluesky-social/indigo/api/atproto"
 	bsky "github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/api/flashes"
 	"github.com/bluesky-social/indigo/bgs"
 	"github.com/bluesky-social/indigo/carstore"
 	"github.com/bluesky-social/indigo/events"
@@ -417,6 +418,77 @@ func (u *TestUser) Post(t *testing.T, body string) *atproto.RepoStrongRef {
 		Uri: resp.Uri,
 	}
 }
+
+// PostFlash creates a flash post using app.flashes.feed.post collection
+func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
+	t.Helper()
+
+	ctx := context.TODO()
+	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
+		Collection: "app.flashes.feed.post",
+		Repo:       u.did,
+		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Text:      body,
+		}},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return &atproto.RepoStrongRef{
+		Cid: resp.Cid,
+		Uri: resp.Uri,
+	}
+}
+
+// PostFlashWithImage creates a flash post with an image attachment
+func (u *TestUser) PostFlashWithImage(t *testing.T, body string, imagePath string) *atproto.RepoStrongRef {
+	t.Helper()
+
+	ctx := context.TODO()
+
+	// Read the image file
+	imageData, err := os.ReadFile(imagePath)
+	if err != nil {
+		t.Fatalf("failed to read image file %s: %v", imagePath, err)
+	}
+
+	// Upload the blob
+	blobResp, err := atproto.RepoUploadBlob(ctx, u.client, bytes.NewReader(imageData))
+	if err != nil {
+		t.Fatalf("failed to upload blob: %v", err)
+	}
+
+	// Create flash post with image embed
+	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
+		Collection: "app.flashes.feed.post",
+		Repo:       u.did,
+		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Text:      body,
+			Embed: &flashes.FeedPost_EmbedImages{
+				Images: []*flashes.FeedPost_Image{
+					{
+						Image: blobResp.Blob,
+						Alt:   "Test image",
+					},
+				},
+			},
+		}},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return &atproto.RepoStrongRef{
+		Cid: resp.Cid,
+		Uri: resp.Uri,
+	}
+}
+
 
 func (u *TestUser) Like(t *testing.T, post *atproto.RepoStrongRef) {
 	t.Helper()

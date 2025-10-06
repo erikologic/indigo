@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  hepa:
+    build:
+      context: ../../
+      dockerfile: ./cmd/hepa/Dockerfile
+    container_name: hepa
+    restart: unless-stopped
+    environment:
+      - ATP_RELAY_HOST=wss://relay.eurosky.social
+      - HEPA_OZONE_AUTH_ADMIN_TOKEN=${HEPA_OZONE_AUTH_ADMIN_TOKEN}
+      - HEPA_PDS_AUTH_ADMIN_TOKEN=${HEPA_PDS_AUTH_ADMIN_TOKEN}
+      - GODEBUG=netdns=go
+      - TZ=Etc/UTC
+      #  - ATP_RELAY_HOST=ws://localhost:2470
+      #  - ATP_RELAY_HOST=wss://relay.eurosky.social
+      # - ATP_RELAY_HOST=wss://user.eurosky.social
+      - ATP_RELAY_HOST=wss://bsky.network
+      - ATP_OZONE_HOST=https://ozone.eurosky.social
+      - HEPA_OZONE_DID=did:plc:7kykji2z2jie3tcaz6jypwsf
+      - ATP_PDS_HOST=https://user.eurosky.social
+      - HEPA_COLLECTION_FILTER=app.flashes.feed.post
+      - HEPA_CSAM_HOST=http://mock-csam:8080
+      - HEPA_CSAM_API_TOKEN=test-csam-token
+    ports:
+      - "2210:2210"
+    volumes:
+      - /data/hepa:/data/hepa
+
+  mock-csam:
+    build:
+      context: ./mock-csam
+    container_name: mock-csam
+    restart: unless-stopped
+    environment:
+      - MOCK_CSAM_PORT=8080
+      - CSAM_HASHES=0644efbdf54d091448d05cfc745e2e0b41d9ae540d399fe65e0e60272e0431e5
+    ports:
+      - "8081:8080"

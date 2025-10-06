@@ -58,8 +58,8 @@ func (fd *FakeDid) GetDocument(ctx context.Context, udid string) (*did.Document,
 
 		Service: []did.Service{
 			did.Service{
-				//ID:              "",
-				Type:            "pds",
+				ID:              func() did.DID { id, _ := did.ParseDID(rec.Did + "#atproto_pds"); return id }(),
+				Type:            "AtprotoPersonalDataServer",
 				ServiceEndpoint: "http://" + rec.Service,
 			},
 		},
