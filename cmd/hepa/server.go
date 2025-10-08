@@ -11,7 +11,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/automod"
-	"github.com/bluesky-social/indigo/automod/cachestore"
+	"github.com/bluesky-social/indigo/automod/consumer/cachestore"
 	"github.com/bluesky-social/indigo/automod/countstore"
 	"github.com/bluesky-social/indigo/automod/engine"
 	"github.com/bluesky-social/indigo/automod/flagstore"
