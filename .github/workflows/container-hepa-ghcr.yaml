@@ -1,5 +1,10 @@
 name: container-hepa-ghcr
-on: [push]
+on:
+  push:
+    branches:
+      - main
+      - eurosky
+
 env:
   REGISTRY: ghcr.io
   USERNAME: ${{ github.actor }}
@@ -7,6 +12,7 @@ env:
 
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  BRANCH: ${{ github.ref_name != 'main' && github.ref_name || '' }}
 
 jobs:
   build-platforms:
@@ -52,9 +58,9 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-,suffix=,format=long
-            type=raw,value=hepa-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            hepa-latest
+            type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
+            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            type=raw,value=hepa-${{ env.BRANCH || 'latest' }}
 
       - name: Build and push by digest
         id: build
@@ -120,9 +126,9 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-,suffix=,format=long
-            type=raw,value=hepa-{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            hepa-latest
+            type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
+            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            type=raw,value=hepa-${{ env.BRANCH || 'latest' }}
 
       - name: Create manifest list and push
         id: merge
@@ -152,7 +158,8 @@ jobs:
       - name: Tag repository with datetime
         run: |
           DATETIME_TAG=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          BRANCH_PREFIX="${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "hepa-$DATETIME_TAG" -m "Release hepa-$DATETIME_TAG"
-          git push origin "hepa-$DATETIME_TAG"
+          git tag -a "hepa-${BRANCH_PREFIX}${DATETIME_TAG}" -m "Release hepa-${BRANCH_PREFIX}${DATETIME_TAG}"
+          git push origin "hepa-${BRANCH_PREFIX}${DATETIME_TAG}"
