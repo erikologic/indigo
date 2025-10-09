@@ -65,7 +65,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./cmd/hepa/mock-csam
           file: ./cmd/hepa/mock-csam/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
