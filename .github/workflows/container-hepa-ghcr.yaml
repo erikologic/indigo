@@ -60,7 +60,7 @@ jobs:
           tags: |
             type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
             type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            type=raw,value=hepa-${{ env.BRANCH || 'latest' }}
+            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
 
       - name: Build and push by digest
         id: build
@@ -128,7 +128,7 @@ jobs:
           tags: |
             type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
             type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            type=raw,value=hepa-${{ env.BRANCH || 'latest' }}
+            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
 
       - name: Create manifest list and push
         id: merge
