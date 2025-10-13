@@ -52,7 +52,8 @@ func (oc *OzoneConsumer) Run(ctx context.Context) error {
 
 	oc.Logger.Info("subscribing to ozone event log", "upstream", oc.OzoneClient.Host, "cursor", cur, "since", since)
 	var limit int64 = 50
-	period := time.Second * 5
+	pollPeriod := time.Hour * 24  // period to wait when no new events
+	retryPeriod := time.Second * 30  // period to wait after error before retrying
 
 	for {
 		me, err := toolsozone.ModerationQueryEvents(
@@ -81,8 +82,8 @@ func (oc *OzoneConsumer) Run(ctx context.Context) error {
 			nil,            // types []string
 		)
 		if err != nil {
-			oc.Logger.Warn("ozone query events failed; sleeping then will retrying", "err", err, "period", period.String())
-			time.Sleep(period)
+			oc.Logger.Warn("ozone query events failed; sleeping then will retrying", "err", err, "period", retryPeriod.String())
+			time.Sleep(retryPeriod)
 			continue
 		}
 
@@ -110,8 +111,8 @@ func (oc *OzoneConsumer) Run(ctx context.Context) error {
 			oc.lastCursor.Store(since.String())
 		}
 		if !anyNewEvents {
-			oc.Logger.Debug("... ozone poller sleeping", "period", period.String())
-			time.Sleep(period)
+			oc.Logger.Debug("... ozone poller sleeping", "period", pollPeriod.String())
+			time.Sleep(pollPeriod)
 		}
 	}
 }

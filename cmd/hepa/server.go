@@ -71,8 +71,11 @@ func NewServer(dir identity.Directory, config Config) (*Server, error) {
 
 	var ozoneClient *xrpc.Client
 	if config.OzoneAdminToken != "" && config.OzoneDID != "" {
+		// Use longer timeout for Ozone to accommodate serverless cold starts (5-10s warmup)
+		ozoneHTTPClient := util.RobustHTTPClient()
+		ozoneHTTPClient.Timeout = 60 * time.Second
 		ozoneClient = &xrpc.Client{
-			Client:     util.RobustHTTPClient(),
+			Client:     ozoneHTTPClient,
 			Host:       config.OzoneHost,
 			AdminToken: &config.OzoneAdminToken,
 			Auth:       &xrpc.AuthInfo{},
