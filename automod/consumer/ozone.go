@@ -52,7 +52,7 @@ func (oc *OzoneConsumer) Run(ctx context.Context) error {
 
 	oc.Logger.Info("subscribing to ozone event log", "upstream", oc.OzoneClient.Host, "cursor", cur, "since", since)
 	var limit int64 = 50
-	period := time.Second * 5
+	period := time.Hour * 24
 
 	for {
 		me, err := toolsozone.ModerationQueryEvents(
