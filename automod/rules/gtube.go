@@ -50,9 +50,10 @@ func GtubeFlashRule(c *automod.RecordContext) error {
 	// Check for GTUBE string in the text
 	if strings.Contains(flashPost.Text, gtubeString) {
 		c.AddRecordLabel("spam")
+		c.ReportRecord(automod.ReportReasonSpam, "GTube spam test pattern detected in flash post")
 		c.Notify("slack")
 		c.AddRecordTag("gtube-flash")
 	}
-	
+
 	return nil
 }
