@@ -14,7 +14,7 @@ import (
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/util"
 
-	"github.com/earthboundkid/versioninfo/v2"
+	"github.com/carlmjohnson/versioninfo"
 )
 
 type HiveAIClient struct {

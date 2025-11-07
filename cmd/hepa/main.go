@@ -312,7 +312,6 @@ var runCmd = &cli.Command{
 				PreScreenToken:       cmd.String("prescreen-token"),
 				CSAMHost:             cmd.String("csam-host"),
 				CSAMAPIToken:         cmd.String("csam-api-token"),
-				CollectionFilter:     cmd.StringSlice("collection-filter"),
 				ReportDupePeriod:     cmd.Duration("report-dupe-period"),
 				QuotaModReportDay:    cmd.Int("quota-mod-report-day"),
 				QuotaModTakedownDay:  cmd.Int("quota-mod-takedown-day"),
@@ -416,7 +415,6 @@ func configEphemeralServer(cmd *cli.Command) (*Server, error) {
 			PreScreenToken:   cmd.String("prescreen-token"),
 			CSAMHost:         cmd.String("csam-host"),
 			CSAMAPIToken:     cmd.String("csam-api-token"),
-			CollectionFilter: cmd.StringSlice("collection-filter"),
 		},
 	)
 }

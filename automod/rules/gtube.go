@@ -54,6 +54,6 @@ func GtubeFlashRule(c *automod.RecordContext) error {
 		c.Notify("slack")
 		c.AddRecordTag("gtube-flash")
 	}
-	
+
 	return nil
 }

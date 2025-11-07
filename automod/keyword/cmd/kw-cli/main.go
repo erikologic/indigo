@@ -10,11 +10,11 @@ import (
 	"github.com/bluesky-social/indigo/automod/keyword"
 	"github.com/bluesky-social/indigo/automod/setstore"
 
-	"github.com/urfave/cli/v3"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	app := cli.Command{
+	app := cli.App{
 		Name:  "kw-cli",
 		Usage: "informal debugging CLI tool for keyword matching",
 	}
@@ -48,13 +48,10 @@ func main() {
 	}
 	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
 	slog.SetDefault(slog.New(h))
-	if err := app.Run(context.Background(), os.Args); err != nil {
-		slog.Error("command failed", "error", err)
-		os.Exit(-1)
-	}
+	app.RunAndExitOnError()
 }
 
-func runFuzzy(ctx context.Context, cmd *cli.Command) error {
+func runFuzzy(cctx *cli.Context) error {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -66,13 +63,14 @@ func runFuzzy(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func runTokens(ctx context.Context, cmd *cli.Command) error {
+func runTokens(cctx *cli.Context) error {
+	ctx := context.Background()
 	sets := setstore.NewMemSetStore()
-	if err := sets.LoadFromFileJSON(cmd.String("json-set-file")); err != nil {
+	if err := sets.LoadFromFileJSON(cctx.String("json-set-file")); err != nil {
 		return err
 	}
-	setName := cmd.String("set-name")
-	identMode := cmd.Bool("identifiers")
+	setName := cctx.String("set-name")
+	identMode := cctx.Bool("identifiers")
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
