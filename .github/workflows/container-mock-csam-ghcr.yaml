@@ -1,8 +1,7 @@
-name: container-hepa-ghcr
+name: container-mock-csam-ghcr
 on:
   push:
     branches:
-      - main
       - eurosky
 
 env:
@@ -58,20 +57,20 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
-            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
+            type=sha,enable=true,priority=100,prefix=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
+            type=raw,value=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            type=raw,value=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
 
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./cmd/hepa/Dockerfile
+          context: ./cmd/hepa/mock-csam
+          file: ./cmd/hepa/mock-csam/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=hepa-${{ steps.platform.outputs.cache }}
-          cache-to: type=gha,mode=max,scope=hepa-${{ steps.platform.outputs.cache }}
+          cache-from: type=gha,scope=mock-csam-${{ steps.platform.outputs.cache }}
+          cache-to: type=gha,mode=max,scope=mock-csam-${{ steps.platform.outputs.cache }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
@@ -126,9 +125,9 @@ jobs:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
-            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
-            type=raw,value=hepa-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
+            type=sha,enable=true,priority=100,prefix=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }},suffix=,format=long
+            type=raw,value=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}{{date 'YYYY-MM-DDTHH-mm-ssZ' tz='UTC'}}
+            type=raw,value=mock-csam-${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}latest
 
       - name: Create manifest list and push
         id: merge
@@ -161,5 +160,5 @@ jobs:
           BRANCH_PREFIX="${{ env.BRANCH && format('{0}-', env.BRANCH) || '' }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "hepa-${BRANCH_PREFIX}${DATETIME_TAG}" -m "Release hepa-${BRANCH_PREFIX}${DATETIME_TAG}"
-          git push origin "hepa-${BRANCH_PREFIX}${DATETIME_TAG}"
+          git tag -a "mock-csam-${BRANCH_PREFIX}${DATETIME_TAG}" -m "Release mock-csam-${BRANCH_PREFIX}${DATETIME_TAG}"
+          git push origin "mock-csam-${BRANCH_PREFIX}${DATETIME_TAG}"
