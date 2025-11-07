@@ -132,6 +132,11 @@ func run(args []string) error {
 					Sources: cli.EnvVars("RELAY_ALLOW_INSECURE_HOSTS"),
 				},
 				&cli.BoolFlag{
+					Name:    "allow-private-networks",
+					Usage:   "enables admin requestCrawl to access private network addresses",
+					Sources: cli.EnvVars("RELAY_ALLOW_PRIVATE_NETWORKS"),
+				},
+				&cli.BoolFlag{
 					Name:    "lenient-sync-validation",
 					Usage:   "when messages fail atproto 'Sync 1.1' validation, just log, don't drop",
 					Sources: cli.EnvVars("RELAY_LENIENT_SYNC_VALIDATION"),
@@ -257,10 +262,12 @@ func runRelay(ctx context.Context, cmd *cli.Command) error {
 	relayConfig.HostPerDayLimit = cmd.Int64("new-hosts-per-day-limit")
 	relayConfig.TrustedDomains = cmd.StringSlice("trusted-domains")
 	relayConfig.LenientSyncValidation = cmd.Bool("lenient-sync-validation")
+	relayConfig.AllowPrivateNetworks = cmd.Bool("allow-private-networks")
 
 	svcConfig := DefaultServiceConfig()
 	svcConfig.AllowInsecureHosts = cmd.Bool("allow-insecure-hosts")
 	svcConfig.DisableRequestCrawl = cmd.Bool("disable-request-crawl")
+	svcConfig.AllowPrivateNetworks = cmd.Bool("allow-private-networks")
 	svcConfig.SiblingRelayHosts = cmd.StringSlice("sibling-relays")
 	if len(svcConfig.SiblingRelayHosts) > 0 {
 		logger.Info("sibling relay hosts configured for admin state forwarding", "servers", svcConfig.SiblingRelayHosts)

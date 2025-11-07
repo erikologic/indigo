@@ -46,6 +46,9 @@ type RelayConfig struct {
 	TrustedDomains        []string
 	HostPerDayLimit       int64
 
+	// If true, allows connections to private network addresses (bypasses SSRF protection)
+	AllowPrivateNetworks bool
+
 	// If true, skip validation that messages for a given account (DID) are coming from the expected upstream host (PDS). Currently only used in tests; might be used for intermediate relays in the future.
 	SkipAccountHostCheck bool
 }
@@ -95,6 +98,7 @@ func NewRelay(db *gorm.DB, evtman *eventmgr.EventManager, dir identity.Directory
 
 	slurpConfig := DefaultSlurperConfig()
 	slurpConfig.ConcurrencyPerHost = config.ConcurrencyPerHost
+	slurpConfig.AllowPrivateNetworks = config.AllowPrivateNetworks
 
 	// register callbacks to persist cursors and host state in database
 	slurpConfig.PersistCursorCallback = r.PersistHostCursors
