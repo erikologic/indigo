@@ -7,7 +7,7 @@ import (
 	appbsky "github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
-	"github.com/bluesky-social/indigo/automod/cachestore"
+	"github.com/bluesky-social/indigo/automod/consumer/cachestore"
 	"github.com/bluesky-social/indigo/automod/countstore"
 	"github.com/bluesky-social/indigo/automod/flagstore"
 	"github.com/bluesky-social/indigo/automod/setstore"
