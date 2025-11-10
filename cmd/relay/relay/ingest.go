@@ -159,6 +159,7 @@ func (r *Relay) processSyncEvent(ctx context.Context, evt *comatproto.SyncSubscr
 
 	if !acc.IsActive() {
 		logger.Info("dropping sync message for non-active account", "status", acc.Status, "upstreamStatus", acc.UpstreamStatus)
+		EventsWarningsCounter.WithLabelValues(hostname, "non-active").Add(1)
 		return nil
 	}
 
