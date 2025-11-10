@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
@@ -132,6 +133,16 @@ func (r *Relay) processCommitEvent(ctx context.Context, evt *comatproto.SyncSubs
 	err = r.UpsertAccountRepo(ctx, acc.UID, syntax.TID(newRepo.Rev), newRepo.CommitCID, newRepo.CommitDataCID)
 	if err != nil {
 		return fmt.Errorf("failed to upsert account repo (%s): %w", acc.DID, err)
+	}
+
+	// Count lexicon types from commit ops
+	// Note: Counting sync events would require parsing CAR blocks and walking the MST to extract record types.
+	for _, op := range evt.Ops {
+		pathParts := strings.Split(op.Path, "/")
+		if len(pathParts) > 0 {
+			lexiconType := pathParts[0]
+			LexiconTypeCounter.WithLabelValues(hostname, lexiconType).Add(1)
+		}
 	}
 
 	// emit the event

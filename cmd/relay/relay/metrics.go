@@ -36,6 +36,11 @@ var eventsSentCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Help: "The total number of events sent to consumers",
 }, []string{"remote_addr", "user_agent"})
 
+var LexiconTypeCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "lexicon_type_counter",
+	Help: "The total number of records by lexicon type ($type)",
+}, []string{"pds", "lexicon_type"})
+
 /* NOTE: not implemented in this version of relay
 var externalUserCreationAttempts = promauto.NewCounter(prometheus.CounterOpts{
 	Name: "relay_external_user_creation_attempts",
