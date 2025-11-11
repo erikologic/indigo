@@ -34,3 +34,13 @@ var csamAPICount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "automod_csam_api_count",
 	Help: "Number of CSAM detection API calls, by HTTP status code",
 }, []string{"status"})
+
+var spamHashCheckDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+	Name: "automod_spam_hash_check_duration_sec",
+	Help: "Duration of spam perceptual hash check operations",
+})
+
+var spamHashCheckCount = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "automod_spam_hash_check_count",
+	Help: "Number of spam hash checks performed, by result (spam/clean/error)",
+}, []string{"result"})

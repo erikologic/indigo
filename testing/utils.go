@@ -21,7 +21,7 @@ import (
 
 	atproto "github.com/bluesky-social/indigo/api/atproto"
 	bsky "github.com/bluesky-social/indigo/api/bsky"
-	"github.com/bluesky-social/indigo/api/flashes"
+	_ "github.com/bluesky-social/indigo/api/flashes" // Register app.flashes.story lexicon type
 	"github.com/bluesky-social/indigo/bgs"
 	"github.com/bluesky-social/indigo/carstore"
 	"github.com/bluesky-social/indigo/events"
@@ -419,32 +419,8 @@ func (u *TestUser) Post(t *testing.T, body string) *atproto.RepoStrongRef {
 	}
 }
 
-// PostFlash creates a flash post using app.flashes.feed.post collection
-func (u *TestUser) PostFlash(t *testing.T, body string) *atproto.RepoStrongRef {
-	t.Helper()
-
-	ctx := context.TODO()
-	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
-		Collection: "app.flashes.feed.post",
-		Repo:       u.did,
-		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
-			CreatedAt: time.Now().Format(time.RFC3339),
-			Text:      body,
-		}},
-	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return &atproto.RepoStrongRef{
-		Cid: resp.Cid,
-		Uri: resp.Uri,
-	}
-}
-
-// PostFlashWithImage creates a flash post with an image attachment
-func (u *TestUser) PostFlashWithImage(t *testing.T, body string, imagePath string) *atproto.RepoStrongRef {
+// PostStoryWithImage creates an app.flashes.story post with an image
+func (u *TestUser) PostStoryWithImage(t *testing.T, text string, imagePath string) *atproto.RepoStrongRef {
 	t.Helper()
 
 	ctx := context.TODO()
@@ -460,35 +436,37 @@ func (u *TestUser) PostFlashWithImage(t *testing.T, body string, imagePath strin
 	if err != nil {
 		t.Fatalf("failed to upload blob: %v", err)
 	}
-
-	// Create flash post with image embed
-	resp, err := atproto.RepoCreateRecord(ctx, u.client, &atproto.RepoCreateRecord_Input{
-		Collection: "app.flashes.feed.post",
-		Repo:       u.did,
-		Record: &lexutil.LexiconTypeDecoder{Val: &flashes.FeedPost{
-			CreatedAt: time.Now().Format(time.RFC3339),
-			Text:      body,
-			Embed: &flashes.FeedPost_EmbedImages{
-				Images: []*flashes.FeedPost_Image{
+	// Manually construct the request body for the story record
+	reqBody := map[string]interface{}{
+		"repo":       u.did,
+		"collection": "app.flashes.story",
+		"record": map[string]interface{}{
+			"$type":     "app.flashes.story",
+			"createdAt": time.Now().Format(time.RFC3339),
+			"text":      text,
+			"embed": map[string]interface{}{
+				"images": []map[string]interface{}{
 					{
-						Image: blobResp.Blob,
-						Alt:   "Test image",
+						"image": blobResp.Blob,
+						"alt":   "Test image",
 					},
 				},
 			},
-		}},
-	})
+		},
+	}
 
+	// Make raw HTTP request since we don't have Go bindings for story type
+	var createResp atproto.RepoCreateRecord_Output
+	err = u.client.Do(ctx, "POST", "application/json", "com.atproto.repo.createRecord", nil, reqBody, &createResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return &atproto.RepoStrongRef{
-		Cid: resp.Cid,
-		Uri: resp.Uri,
+		Cid: createResp.Cid,
+		Uri: createResp.Uri,
 	}
 }
-
 
 func (u *TestUser) Like(t *testing.T, post *atproto.RepoStrongRef) {
 	t.Helper()
