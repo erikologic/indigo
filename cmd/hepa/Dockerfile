@@ -33,10 +33,15 @@ ENTRYPOINT ["dumb-init", "--"]
 WORKDIR /
 RUN mkdir -p data/hepa
 COPY --from=build-env /hepa /
+COPY ./cmd/hepa/spam.jpg /data/hepa/spam.jpg
 
 # small things to make golang binaries work well under alpine
 ENV GODEBUG=netdns=go
 ENV TZ=Etc/UTC
+
+# Default spam detection configuration
+ENV HEPA_SPAM_IMAGE_PATH=/data/hepa/spam.jpg
+ENV HEPA_SPAM_HASH_THRESHOLD=15
 
 EXPOSE 2210
 

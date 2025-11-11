@@ -48,6 +48,8 @@ type Config struct {
 	AbyssPassword        string
 	CSAMHost             string
 	CSAMAPIToken         string
+	SpamImagePath        string
+	SpamHashThreshold    int
 	RulesetName          string
 	RatelimitBypass      string
 	PreScreenHost        string
@@ -183,6 +185,15 @@ func NewServer(dir identity.Directory, config Config) (*Server, error) {
 		logger.Info("configuring CSAM detection service")
 		cc := visual.NewCSAMClient(config.CSAMHost, config.CSAMAPIToken)
 		extraBlobRules = append(extraBlobRules, cc.CSAMDetectionBlobRule)
+	}
+
+	if config.SpamImagePath != "" {
+		logger.Info("configuring spam image hash detection", "reference_image", config.SpamImagePath, "threshold", config.SpamHashThreshold)
+		sc, err := visual.NewSpamHashClient(config.SpamImagePath, config.SpamHashThreshold)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize spam hash client: %v", err)
+		}
+		extraBlobRules = append(extraBlobRules, sc.SpamHashBlobRule)
 	}
 
 	var ruleset automod.RuleSet

@@ -160,6 +160,17 @@ func run(args []string) error {
 			Usage:   "API token for CSAM detection service",
 			Sources: cli.EnvVars("HEPA_CSAM_API_TOKEN"),
 		},
+		&cli.StringFlag{
+			Name:    "spam-image-path",
+			Usage:   "path to reference spam image for perceptual hash detection",
+			Sources: cli.EnvVars("HEPA_SPAM_IMAGE_PATH"),
+		},
+		&cli.IntFlag{
+			Name:    "spam-hash-threshold",
+			Usage:   "perceptual hash distance threshold for spam detection (0-64, lower = stricter)",
+			Value:   15,
+			Sources: cli.EnvVars("HEPA_SPAM_HASH_THRESHOLD"),
+		},
 		&cli.DurationFlag{
 			Name:    "report-dupe-period",
 			Usage:   "time period within which automod will not re-report an account for the same reasonType",
@@ -312,6 +323,8 @@ var runCmd = &cli.Command{
 				PreScreenToken:       cmd.String("prescreen-token"),
 				CSAMHost:             cmd.String("csam-host"),
 				CSAMAPIToken:         cmd.String("csam-api-token"),
+				SpamImagePath:        cmd.String("spam-image-path"),
+				SpamHashThreshold:    cmd.Int("spam-hash-threshold"),
 				ReportDupePeriod:     cmd.Duration("report-dupe-period"),
 				QuotaModReportDay:    cmd.Int("quota-mod-report-day"),
 				QuotaModTakedownDay:  cmd.Int("quota-mod-takedown-day"),
@@ -415,6 +428,8 @@ func configEphemeralServer(cmd *cli.Command) (*Server, error) {
 			PreScreenToken:   cmd.String("prescreen-token"),
 			CSAMHost:         cmd.String("csam-host"),
 			CSAMAPIToken:     cmd.String("csam-api-token"),
+			SpamImagePath:    cmd.String("spam-image-path"),
+			SpamHashThreshold: cmd.Int("spam-hash-threshold"),
 		},
 	)
 }
